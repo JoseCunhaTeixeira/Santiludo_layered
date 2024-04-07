@@ -42,7 +42,7 @@ https://doi.org/10.1029/2021JB022074
       - ...
 
 ## Compilation is done with the setup.py file :
-python3 setup.py build_ext --inplace clean
+- python3 setup.py build_ext --inplace clean
 This creates a ./build and ./bib directories, with the last containing the shared libraries *.so
 that can be used in Python and the resulting *.cpp files from the *.pyx compilation
 
