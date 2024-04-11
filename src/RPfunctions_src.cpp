@@ -23,6 +23,78 @@ struct hillsAverage_Result {
 
 
 
+hillsAverage_Result hillsAverage_src(double mu_clay,
+                                     double mu_silt,
+                                     double mu_sand,
+                                     double rho_clay,
+                                     double rho_silt,
+                                     double rho_sand,
+                                     double k_clay,
+                                     double k_silt,
+                                     double k_sand,
+                                     const std::vector<std::string>& soiltypes) {
+    // ==========================================
+    // Computes the effective properties of the solid grains from its constituents
+    //
+    // Parameters:
+    // double mu_clay: Shear modulus of clay [GPa]
+    // double mu_silt: Shear modulus of silt [GPa]
+    // double mu_sand: Shear modulus of sand [GPa]
+    // double rho_clay: Density of clay [Kg/m3]
+    // double rho_silt: Density of silt [Kg/m3]
+    // double rho_sand: Density of sand [Kg/m3]
+    // double k_clay: Bulk modulus of clay [GPa]
+    // double k_silt: Bulk modulus of silt [GPa]
+    // double k_sand: Bulk modulus of sand [GPa]
+    // vector[string] soiltypes: soil types of each layer in the profile
+    //
+    // Outputs:
+    // hillsAverage_Result result: structure with the following fields
+    // vector [double] mus: Shear moduli of grain of each layer [Pa]
+    // vector[double] ks: Bulk moduli of grain of each layer [Pa]
+    // vector[double] rhos: Densities of grain of each layer [Kg/m3]
+    // vector[double] nus: Poisson's ratios of each layer [-]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
+
+    std::vector<double> mus(soiltypes.size()); // Shear moduli of grain of each layer
+    std::vector<double> ks(soiltypes.size()); // Bulk moduli of grain of each layer
+    std::vector<double> rhos(soiltypes.size()); // Densities of grain of each layer
+    std::vector<double> nus(soiltypes.size()); // Poisson's ratios of each layer
+
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string soilType = soiltypes[j]; // Soil type for current layer
+
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
+
+        // Shear moduli of grain [Pa]
+        mus[j] = 0.5 * (1 / (soil.wclay / mu_clay + soil.wsilt / mu_silt + soil.wsand / mu_sand) + (soil.wclay * mu_clay + soil.wsilt * mu_silt + soil.wsand * mu_sand)) * 1e9;
+        
+        // Bulk moduli of grain [Pa]
+        ks[j] = 0.5 * (1 / (soil.wclay / k_clay + soil.wsilt / k_silt + soil.wsand / k_sand) + (soil.wclay * k_clay + soil.wsilt * k_silt + soil.wsand * k_sand)) * 1e9;
+        
+        // Densities of grain [Kg/m3]
+        rhos[j] = soil.wclay * rho_clay + soil.wsilt * rho_silt + soil.wsand * rho_sand;
+        
+        // Poisson's ratios
+        nus[j] = (3 * ks[j] - 2 * mus[j]) / (2 * (3 * ks[j] + mus[j]));
+    }
+
+    hillsAverage_Result result; // Structure to store the results
+    result.mus = mus;
+    result.ks = ks;
+    result.rhos = rhos;
+    result.nus = nus;
+
+    return result;
+}
+
+
+
 effFluid_Result effFluid_src(std::vector<double> Sws,
                              double kw,
                              double ka,
@@ -87,6 +159,99 @@ effFluid_Result effFluid_src(std::vector<double> Sws,
     result.rhof = rhof;
     result.rhob = rhob;
 
+    return result;
+}
+
+
+
+hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
+                                     std::vector<double> z,
+                                     std::vector<double> h,
+                                     std::vector<double> rhob,
+                                     double g,
+                                     double rhoa,
+                                     double rhow,
+                                     std::vector<double> Ns,
+                                     std::vector<double> mus,
+                                     std::vector<double> nus,
+                                     std::vector<double> fracs,
+                                     int kk,
+                                     const std::vector<std::string>& soiltypes,
+                                     const std::vector<double>& thicknesses) {
+    // ==========================================
+    // Hertz-Mindlin model
+    //
+    // Parameters:
+    // vector[double] Swe: effective wetting phase saturation over depth [-]
+    // vector[double] z: depths of the profile [m]
+    // vector[double] h: pressure head over depth [m]
+    // vector[double] rhob: bulk density over depth [Kg/m3]
+    // double g: gravity [m/s2]
+    // double rhoa: air density [Kg/m3]
+    // double rhow: water density [Kg/m3]
+    // vector[double] Ns: shear modulus of grain of each layer [GPa]
+    // vector[double] mus: Shear moduli of grain of each layer [GPa]
+    // vector[double] nus: Poisson's ratios of each layer [-]
+    // vector[double] fracs: fraction of non-slipping grains of each layer [-]
+    // int kk: type of effective stress
+    // vector[string] soiltypes: soil types of each layer in the profile
+    // vector[double] thicknesses: thickness of each layer [m]
+    //
+    // Outputs:
+    // hertzMindlin_Result result: structure with the following fields
+    // vector [double] KHM: effective bulk modulus over depth [Pa]
+    // vector[double] muHM: effective shear modulus over depth [Pa]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
+
+    size_t num_points = Swe.size(); // Number of cells in the profile
+
+    std::vector<double> KHM(num_points); // Effective bulk modulus over depth
+    std::vector<double> muHM(num_points); // Effective shear modulus over depth
+
+    double dz = fabs(z[1] - z[0]); // Depth discretization
+
+    int start = 0; // Depth start index for fisrt layer
+
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string soilType = soiltypes[j]; // Soil type for current layer
+        double thickness = thicknesses[j]; // Thickness of current layer
+
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
+
+        int end = round(thickness / dz) + start; // Depth end index for current layer
+
+        for (int i = start; i < end; ++i) {
+
+            double St = (h[i] <= 0) ? 0 : Swe[i] * rhow * g * h[i]; // Suction term | Null when fully saturated
+
+            double dep = fabs(z[i]); // Depth (positive value)
+
+            double Pe; // Effective stress
+            if (kk == 1) {
+                Pe = 101325;
+            } else if (kk == 2) {
+                Pe = rhob[i] * g * dep - rhoa * g * dep;
+            } else if (kk == 3) {
+                Pe = rhob[i] * g * dep - rhoa * g * dep + St;
+            } else {
+                throw std::invalid_argument("Invalid value for kk");
+            }
+
+            KHM[i] = std::pow((Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (18 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective bulk modulus
+            muHM[i] = ((2 + 3 * fracs[j] - (1 + 3 * fracs[j]) * nus[j]) / (5 * (2 - nus[j]))) * std::pow((3 * Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (2 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective shear modulus
+        }
+        start = end; // Update start index for next layer
+    }
+
+    hertzMindlin_Result result; // Structure to store the results
+    result.KHM = KHM;
+    result.muHM = muHM;
+    
     return result;
 }
 
@@ -180,168 +345,4 @@ double fish_src(double vp, double vs) {
     double ratio = vp/vs;
     // return (vp*vp - 2*vs*vs) / (2 * (vp*vp - vs*vs))
     return (0.5 * ratio*ratio - 1) / (ratio*ratio - 1);
-}
-
-
-
-hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
-                                     std::vector<double> z,
-                                     std::vector<double> h,
-                                     std::vector<double> rhob,
-                                     double g,
-                                     double rhoa,
-                                     double rhow,
-                                     std::vector<double> Ns,
-                                     std::vector<double> mus,
-                                     std::vector<double> nus,
-                                     std::vector<double> fracs,
-                                     int kk,
-                                     const std::vector<std::string>& soiltypes,
-                                     const std::vector<double>& thicknesses) {
-    // ==========================================
-    // Hertz-Mindlin model
-    //
-    // Parameters:
-    // vector[double] Swe: effective wetting phase saturation over depth [-]
-    // vector[double] z: depths of the profile [m]
-    // vector[double] h: pressure head over depth [m]
-    // vector[double] rhob: bulk density over depth [Kg/m3]
-    // double g: gravity [m/s2]
-    // double rhoa: air density [Kg/m3]
-    // double rhow: water density [Kg/m3]
-    // vector[double] Ns: shear modulus of grain of each layer [GPa]
-    // vector[double] mus: Shear moduli of grain of each layer [GPa]
-    // vector[double] nus: Poisson's ratios of each layer [-]
-    // vector[double] fracs: fraction of non-slipping grains of each layer [-]
-    // int kk: type of effective stress
-    // vector[string] soiltypes: soil types of each layer in the profile
-    // vector[double] thicknesses: thickness of each layer [m]
-    //
-    // Outputs:
-    // hertzMindlin_Result result: structure with the following fields
-    // vector [double] KHM: effective bulk modulus over depth [Pa]
-    // vector[double] muHM: effective shear modulus over depth [Pa]
-    //
-    // Programmers:
-    // Firstly implemented in Matlab in Solazzi et al. (2021)
-    // Traduced in C++ by J. Cunha Teixeira in 2024/03
-    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
-    // ==========================================
-
-    size_t num_points = Swe.size(); // Number of cells in the profile
-
-    std::vector<double> KHM(num_points); // Effective bulk modulus over depth
-    std::vector<double> muHM(num_points); // Effective shear modulus over depth
-
-    double dz = std::abs(z[1] - z[0]); // Depth discretization
-
-    int start = 0; // Depth start index for fisrt layer
-
-    for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
-        double thickness = thicknesses[j]; // Thickness of current layer
-
-        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
-
-        int end = round(thickness / dz) + start; // Depth end index for current layer
-
-        for (int i = start; i < end; ++i) {
-            double St = (h[i] <= 0) ? 0 : Swe[i] * rhow * g * h[i]; // Suction term | Null when fully saturated
-
-            double dep = abs(z[i]); // Depth (positive value)
-
-            double Pe; // Effective stress
-            if (kk == 1) {
-                Pe = 101325;
-            } else if (kk == 2) {
-                Pe = rhob[i] * g * dep - rhoa * g * dep;
-            } else if (kk == 3) {
-                Pe = rhob[i] * g * dep - rhoa * g * dep + St;
-            } else {
-                throw std::invalid_argument("Invalid value for kk");
-            }
-
-            KHM[i] = std::pow((Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (18 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective bulk modulus
-            muHM[i] = ((2 + 3 * fracs[j] - (1 + 3 * fracs[j]) * nus[j]) / (5 * (2 - nus[j]))) * std::pow((3 * Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (2 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective shear modulus
-        }
-        start = end; // Update start index for next layer
-    }
-
-    hertzMindlin_Result result; // Structure to store the results
-    result.KHM = KHM;
-    result.muHM = muHM;
-    
-    return result;
-}
-
-
-
-hillsAverage_Result hillsAverage_src(double mu_clay,
-                                     double mu_silt,
-                                     double mu_sand,
-                                     double rho_clay,
-                                     double rho_silt,
-                                     double rho_sand,
-                                     double k_clay,
-                                     double k_silt,
-                                     double k_sand,
-                                     const std::vector<std::string>& soiltypes) {
-    // ==========================================
-    // Computes the effective properties of the solid grains from its constituents
-    //
-    // Parameters:
-    // double mu_clay: Shear modulus of clay [GPa]
-    // double mu_silt: Shear modulus of silt [GPa]
-    // double mu_sand: Shear modulus of sand [GPa]
-    // double rho_clay: Density of clay [Kg/m3]
-    // double rho_silt: Density of silt [Kg/m3]
-    // double rho_sand: Density of sand [Kg/m3]
-    // double k_clay: Bulk modulus of clay [GPa]
-    // double k_silt: Bulk modulus of silt [GPa]
-    // double k_sand: Bulk modulus of sand [GPa]
-    // vector[string] soiltypes: soil types of each layer in the profile
-    //
-    // Outputs:
-    // hillsAverage_Result result: structure with the following fields
-    // vector [double] mus: Shear moduli of grain of each layer [Pa]
-    // vector[double] ks: Bulk moduli of grain of each layer [Pa]
-    // vector[double] rhos: Densities of grain of each layer [Kg/m3]
-    // vector[double] nus: Poisson's ratios of each layer [-]
-    //
-    // Programmers:
-    // Firstly implemented in Matlab in Solazzi et al. (2021)
-    // Traduced in C++ by J. Cunha Teixeira in 2024/03
-    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
-    // ==========================================
-
-    std::vector<double> mus(soiltypes.size()); // Shear moduli of grain of each layer
-    std::vector<double> ks(soiltypes.size()); // Bulk moduli of grain of each layer
-    std::vector<double> rhos(soiltypes.size()); // Densities of grain of each layer
-    std::vector<double> nus(soiltypes.size()); // Poisson's ratios of each layer
-
-    for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
-
-        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
-
-        // Shear moduli of grain [Pa]
-        mus[j] = 0.5 * (1 / (soil.wclay / mu_clay + soil.wsilt / mu_silt + soil.wsand / mu_sand) + (soil.wclay * mu_clay + soil.wsilt * mu_silt + soil.wsand * mu_sand)) * 1e9;
-        
-        // Bulk moduli of grain [Pa]
-        ks[j] = 0.5 * (1 / (soil.wclay / k_clay + soil.wsilt / k_silt + soil.wsand / k_sand) + (soil.wclay * k_clay + soil.wsilt * k_silt + soil.wsand * k_sand)) * 1e9;
-        
-        // Densities of grain [Kg/m3]
-        rhos[j] = soil.wclay * rho_clay + soil.wsilt * rho_silt + soil.wsand * rho_sand;
-        
-        // Poisson's ratios
-        nus[j] = (3 * ks[j] - 2 * mus[j]) / (2 * (3 * ks[j] + mus[j]));
-    }
-
-    hillsAverage_Result result; // Structure to store the results
-    result.mus = mus;
-    result.ks = ks;
-    result.rhos = rhos;
-    result.nus = nus;
-
-    return result;
 }

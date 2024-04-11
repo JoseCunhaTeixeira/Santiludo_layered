@@ -59,19 +59,20 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import copper
+from matplotlib.backends.backend_pdf import PdfPages
 from time import perf_counter
 from io import StringIO
 from subprocess import run, PIPE
 
 # Cython shared libraries for C++ and Cython functions
-from lib.RPfunctions import *
-from lib.VGfunctions import *
-from lib.TTDSPfunctions import *
+from lib.VGfunctions import vanGen
+from lib.RPfunctions import hillsAverage, effFluid, hertzMindlin, biotGassmann, fish
+from lib.TTDSPfunctions import firstArrival, writeVelocityModel, readDispersion
 
 
 
 # Ploting font size parameter definition
-plt.rcParams.update({'font.size': 18})
+plt.rcParams.update({'font.size': 14})
 
 
 # Create output folder if do not exist
@@ -95,7 +96,7 @@ ka = 1.01e5 # Air bulk modulus [Pa]
 g = 9.82 # Gravity acceleration [m/s2]
 
 # Soil layers
-soiltypes = ['sand', 'clay',] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
+soiltypes = ['sand', 'clay'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
 thicknesses = [5, 5] # Layer thicknesses [m]
 
 # Grains/agregate parameters per layer
@@ -110,7 +111,7 @@ zs = -np.arange(top_surface_level, depth + dz, dz) # Depth positions (negative d
 NbCells = len(zs) - 1 # Number of exploration points in depth [#]
 
 # Water table
-WTs = [2, 7] # Water table depths [m]
+WTs = [1.8, 3.1] # Water table depths [m]
 color_map = copper(np.linspace(0, 1, len(WTs))) # Colorscale for plots if several WT tested
 
 # Grains/agregate mechanical properties
@@ -137,7 +138,7 @@ kk = 3 # Pe with suction (cf. Solazzi et al. 2021)
 # In GPDC format : "thickness Vp Vs rho\n"
 # Each layer is separated by \n | Only spaces between values | Last layer thickness must be 0)
 # under_layers = "" # Empty string if no under layers
-under_layers = "0 2400 1200 2500\n" # One substratum layer
+under_layers = "10 1050 307 2258\n0 4000 2000 2500\n" # One substratum layer
 n_under_layers = under_layers.count('\n') # Number of under layers
 
 
@@ -186,74 +187,87 @@ for iWT, WT in enumerate(WTs) :
     #### ROCK PHYSICS -------------------------------------------------------------------------------------------------------------------------------
     # Saturation profile with depth
     hs, Sws, Swes = vanGen(zs, WT, soiltypes, thicknesses)
-    # fig, axs = plt.subplots(2, 1)
-    # fig.suptitle("vanGen")
-    # axs[0].plot(hs, zs)
-    # axs[0].axhline(-WT, color='gray', linestyle='--')
-    # axs[0].set_xlabel('Pressure head h')
-    # axs[0].set_ylabel('Depth z [m]')
-    # axs[1].plot(Sws, zs, Swes, zs)
-    # axs[1].axhline(-WT, color='gray', linestyle='--')
-    # axs[1].set_xlabel('Saturation S')
-    # axs[1].set_ylabel('Depth z [m]')
-    # axs[1].legend(['Total saturation Sw', 'Effective wetting phase saturation Swe'])
-    # axs[1].set_xlim([0,1.05])
+
+    fig, axs = plt.subplots(2, 1)
+    fig.suptitle("vanGen")
+    axs[0].plot(hs, zs)
+    axs[0].axhline(-WT, color='gray', linestyle='--')
+    axs[0].set_xlabel('Pressure head h')
+    axs[0].set_ylabel('Depth z [m]')
+    axs[1].plot(Sws, zs, Swes, zs)
+    axs[1].axhline(-WT, color='gray', linestyle='--')
+    axs[1].set_xlabel('Saturation S')
+    axs[1].set_ylabel('Depth z [m]')
+    axs[1].legend(['Total saturation Sw', 'Effective wetting phase saturation Swe'])
+    axs[1].set_xlim([0,1.05])
+    fig.savefig(f'./output/1_vanGen_WT{WT}.png', bbox_inches='tight')
+
 
     # Effective Grain Properties (constant with depth)
     mus, ks, rhos, nus = hillsAverage(mu_clay, mu_silt, mu_sand, rho_clay,
                                       rho_silt, rho_sand, k_clay, k_silt,
                                       k_sand, soiltypes)
-    # print('\nhillsAverage')
-    # print(f'Shear moduli of grains: {mus = } [Pa]')
-    # print(f'Bulk moduli of grains: {ks = } [Pa]')
-    # print(f'Density of  grains: {rhos = } [kg/m3]')
-    # print(f"Poisson's ratio: {nus = }")
-    # print('\n')
+    
+    print('\nhillsAverage')
+    print(f'Shear moduli of grains: {mus = } [Pa]')
+    print(f'Bulk moduli of grains: {ks = } [Pa]')
+    print(f'Density of  grains: {rhos = } [kg/m3]')
+    print(f"Poisson's ratio: {nus = }")
+    print('\n')
+
 
     # Effective Fluid Properties
     kfs, rhofs, rhobs = effFluid(Sws, kw, ka, rhow,
                                  rhoa, rhos, soiltypes, thicknesses, dz)
-    # fig, axs = plt.subplots(2, 1)
-    # fig.suptitle("effFluid")
-    # axs[0].plot(kfs, zs)
-    # axs[0].axhline(-WT, color='gray', linestyle='--')
-    # axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
-    # axs[0].set_ylabel('Depth z [m]')
-    # axs[1].plot(rhofs, zs, rhobs, zs)
-    # axs[1].axhline(-WT, color='gray', linestyle='--')
-    # axs[1].set_xlabel('Density rho [kg/m3]')
-    # axs[1].set_ylabel('Depth z [m]')
-    # axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'])
+    
+    fig, axs = plt.subplots(2, 1)
+    fig.suptitle("effFluid")
+    axs[0].plot(kfs, zs)
+    axs[0].axhline(-WT, color='gray', linestyle='--')
+    axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
+    axs[0].set_ylabel('Depth z [m]')
+    axs[1].plot(rhofs, zs, rhobs, zs)
+    axs[1].axhline(-WT, color='gray', linestyle='--')
+    axs[1].set_xlabel('Density rho [kg/m3]')
+    axs[1].set_ylabel('Depth z [m]')
+    axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'])
+    fig.savefig(f'./output/3_effFluid_WT{WT}.png', bbox_inches='tight')
+
 
     # Hertz Mindlin Frame Properties
     KHMs, muHMs = hertzMindlin(Swes, zs, hs, rhobs,
                                g, rhoa, rhow, Ns,
                                mus, nus, fracs, kk,
                                soiltypes, thicknesses)
-    # fig, ax = plt.subplots()
-    # fig.suptitle("hertzMindlin")
-    # ax.plot(KHMs, zs)
-    # ax.plot(muHMs, zs)
-    # ax.axhline(-WT, color='gray', linestyle='--')
-    # ax.set_xlabel('Pressure [Pa]')
-    # ax.set_ylabel('Depth z [m]')
-    # ax.legend(['Effective bulk KHM', 'Shear moduli muHM'])
-    # ax.set_xlim([1.3e8,2.5e8])
+    
+    fig, ax = plt.subplots()
+    fig.suptitle("hertzMindlin")
+    ax.plot(KHMs, zs)
+    ax.plot(muHMs, zs)
+    ax.axhline(-WT, color='gray', linestyle='--')
+    ax.set_xlabel('Pressure [Pa]')
+    ax.set_ylabel('Depth z [m]')
+    ax.legend(['Effective bulk KHM', 'Shear moduli muHM'])
+    ax.set_xlim([1.3e8,2.5e8])
+    fig.savefig(f'./output/4_hertzMindlin_WT{WT}.png', bbox_inches='tight')
+
 
     # Saturated Properties
     VPs, VSs = biotGassmann(KHMs, muHMs, ks, kfs,
                             rhobs, soiltypes, thicknesses, dz)
-    # fig, ax = plt.subplots()
-    # fig.suptitle("biotGassmann")
-    # ax.plot(VPs, zs)
-    # ax.plot(VSs, zs)
-    # ax.axhline(-WT, color='gray', linestyle='--')
-    # ax.set_xlabel('Velocity [m/s]')
-    # ax.set_ylabel('Depth z [m]')
-    # ax.legend(['Vp', 'Vs'])
+    
+    fig, ax = plt.subplots()
+    fig.suptitle("biotGassmann")
+    ax.plot(VPs, zs)
+    ax.plot(VSs, zs)
+    ax.axhline(-WT, color='gray', linestyle='--')
+    ax.set_xlabel('Velocity [m/s]')
+    ax.set_ylabel('Depth z [m]')
+    ax.legend(['Vp', 'Vs'])
+    fig.savefig(f'./output/5_biotGassmann_WT{WT}.png', bbox_inches='tight')
 
-    # plt.show()
-    # plt.close()
+
+    plt.close('all')
     ### ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -268,7 +282,7 @@ for iWT, WT in enumerate(WTs) :
 
     # Dispersion curves computing with GPDC
     velocity_model_RAMfile = StringIO(velocity_model_string) # Keep velocity model string in the RAM in a file format alike to trick GPDC which expects a file
-    gpdc_command = [f"gpdc -{wave} {n_modes} -n {nf} -min {min_f} -max {max_f} -s {s}"]
+    gpdc_command = [f"gpdc -{wave} {n_modes} -n {nf} -min {min_f} -max {max_f} -s {s} -j 16"]
     gpdc_output_string = run(gpdc_command, input=velocity_model_RAMfile.getvalue(), text=True, shell=True, stdout=PIPE).stdout # raw output string from GPDC
 
     dispersion_data, n_modes = readDispersion(gpdc_output_string) # Reads GPDC output and converts dispersion data to a list of numpy arrays for each mode
@@ -282,14 +296,8 @@ for iWT, WT in enumerate(WTs) :
 
     if iWT == 0:
         # Create figures
-        fig1, ax1 = plt.subplots(dpi=300)
-        fig2, ax2 = plt.subplots(dpi=300)
-        fig3, ax3 = plt.subplots(dpi=300)
-        fig4, ax4 = plt.subplots(dpi=300)
-        fig5, ax5 = plt.subplots(dpi=300)
-        fig1000, ax1000 = plt.subplots(dpi=300)
-        fig2000, ax2000 = plt.subplots(dpi=300)
-        fig3000, ax3000 = plt.subplots(dpi=300)
+        figPage1, axs1 = plt.subplots(2, 3, figsize=(11.69,8.27), gridspec_kw={'hspace':0.3, 'wspace':0.4})
+        figPage2, axs2 = plt.subplots(2, 3, figsize=(11.69,8.27), gridspec_kw={'hspace':0.3, 'wspace':0.4})
 
         # Name for the output files with soil types and thicknesses
         name = ''
@@ -297,92 +305,109 @@ for iWT, WT in enumerate(WTs) :
             name += f"{soiltype}{thickness}_"
         name = name[:-1]
 
-    # Plot Sws vs. zs
-    ax1.plot(Sws, zs, linewidth=2, color=color)
-    ax1.axhline(-WT, color=color, linestyle='--', linewidth=1)
-    ax1.set_xlim(0, 1.1)
-    ax1.set_xlabel('$S_w$')
-    ax1.set_ylabel('$z$ [m]')
-    fig1.savefig('./output/1.pdf', bbox_inches='tight')
+
 
     # Plot VPs vs. zs
-    ax2.plot(VPs, zs, linewidth=2, color=color)
-    ax2.axhline(-WT, color=color, linestyle='--', linewidth=1)
-    ax2.set_xlim(0, 2000)
-    ax2.set_xlabel('$V_p$ [m/s]')
-    ax2.set_ylabel('$z$ [m]')
-    fig2.savefig('./output/2.pdf', bbox_inches='tight')
+    axs1[0,0].plot(VPs, zs, linewidth=1.5, color=color)
+    axs1[0,0].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs1[0,0].set_xlim(0, 2000)
+    axs1[0,0].set_xlabel('$V_p$ [m/s]')
+    axs1[0,0].set_ylabel('$z$ [m]')
 
     # Plot VSs vs. zs
-    ax3.plot(VSs, zs, linewidth=2, color=color)
-    ax3.axhline(-WT, color=color, linestyle='--', linewidth=1)
-    ax3.set_xlim(0, 600)
-    ax3.set_xlabel('$V_s$ [m/s]')
-    ax3.set_ylabel('$z$ [m]')
-    fig3.savefig('./output/3.pdf', bbox_inches='tight')
+    axs1[0,1].plot(VSs, zs, linewidth=1.5, color=color)
+    axs1[0,1].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs1[0,1].set_xlim(0, 600)
+    axs1[0,1].set_xlabel('$V_s$ [m/s]')
+    axs1[0,1].set_ylabel('$z$ [m]')
 
     # Plot rho_b vs. zs
-    ax4.plot(rhobs, zs, linewidth=2, color=color)
-    ax4.axhline(-WT, color=color, linestyle='--', linewidth=1)
-    ax4.set_xlim(1500, 2000)
-    ax4.set_xlabel('$\\rho_b$ [kg/$m^3$]')
-    ax4.set_ylabel('$z$ [m]')
-    fig4.savefig('./output/4.pdf', bbox_inches='tight')
+    axs1[0,2].plot(rhobs, zs, linewidth=1.5, color=color)
+    axs1[0,2].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs1[0,2].set_xlim(1500, 2000)
+    axs1[0,2].set_xlabel('$\\rho_b$ [kg/$m^3$]')
+    axs1[0,2].set_ylabel('$z$ [m]')
+
+    # Plot Sws vs. zs
+    axs1[1,0].plot(Sws, zs, linewidth=1.5, color=color)
+    axs1[1,0].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs1[1,0].set_xlim(0, 1.1)
+    axs1[1,0].set_xlabel('$S_w$')
+    axs1[1,0].set_ylabel('$z$ [m]')
 
     # Plot Poisson ratio vs. zs
-    ax5.plot(list(map(fish, VPs, VSs)), zs, linewidth=2, color=color)
-    ax5.axhline(-WT, color=color, linestyle='--', linewidth=1)
-    ax5.set_xlim(0, 0.5)
-    ax5.set_xlabel('Poisson ratio')
-    ax5.set_ylabel('$z$ [m]')
-    fig5.savefig('./output/5.pdf', bbox_inches='tight')
+    axs1[1,1].plot(list(map(fish, VPs, VSs)), zs, linewidth=1.5, color=color)
+    axs1[1,1].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs1[1,1].set_xlim(0, 0.5)
+    axs1[1,1].set_xlabel('Poisson ratio')
+    axs1[1,1].set_ylabel('$z$ [m]')
+
+    # No plot
+    axs1[1,2].axis('off')
+
+
+
+    # Plot VPs vs. zs
+    axs2[0,0].plot(VPs, zs, linewidth=1.5, color=color)
+    axs2[0,0].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs2[0,0].set_xlim(0, 2000)
+    axs2[0,0].set_xlabel('$V_p$ [m/s]')
+    axs2[0,0].set_ylabel('$z$ [m]')
+
+    # Plot VSs vs. zs
+    axs2[0,1].plot(VSs, zs, linewidth=1.5, color=color)
+    axs2[0,1].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs2[0,1].set_xlim(0, 600)
+    axs2[0,1].set_xlabel('$V_s$ [m/s]')
+    axs2[0,1].set_ylabel('$z$ [m]')
+
+    # Plot rho_b vs. zs
+    axs2[0,2].plot(rhobs, zs, linewidth=1.5, color=color)
+    axs2[0,2].axhline(-WT, color=color, linestyle='--', linewidth=0.5)
+    axs2[0,2].set_xlim(1500, 2000)
+    axs2[0,2].set_xlabel('$\\rho_b$ [kg/$m^3$]')
+    axs2[0,2].set_ylabel('$z$ [m]')
 
     # Plot simulated P-wave first arrivals
-    ax1000.plot(xs, ThodPs, linewidth=2, color=color)
-    ax1000.set_xlim([0, max(xs)])
-    ax1000.set_ylim([0, 0.25])
-    ax1000.set_xlabel('Offset [m]')
-    ax1000.set_ylabel('P- first arrival time [s]')
-    fig1000.savefig('./output/1000.pdf', bbox_inches='tight')
+    axs2[1,0].plot(xs, ThodPs, linewidth=1.5, color=color)
+    axs2[1,0].set_xlim([0, max(xs)])
+    axs2[1,0].set_ylim([0, 0.25])
+    axs2[1,0].set_xlabel('Offset [m]')
+    axs2[1,0].set_ylabel('P- first arrival time [s]')
 
     # Plot simulated S-wave first arrivals
-    ax2000.plot(xs, ThodSs, linewidth=2, color=color)
-    ax2000.set_xlim([0, max(xs)])
-    ax2000.set_ylim([0, 0.7])
-    ax2000.set_xlabel('Offset [m]')
-    ax2000.set_ylabel('S- first arrival time [s]')
-    fig2000.savefig('./output/2000.pdf', bbox_inches='tight')
+    axs2[1,1].plot(xs, ThodSs, linewidth=1.5, color=color)
+    axs2[1,1].set_xlim([0, max(xs)])
+    axs2[1,1].set_ylim([0, 0.7])
+    axs2[1,1].set_xlabel('Offset [m]')
+    axs2[1,1].set_ylabel('S- first arrival time [s]')
 
     # Plot simulated dispersion curve
-    max_vr = 0
-    min_vr = 1e10
+    max_vr = np.max(dispersion_data[0][:,1])
+    min_vr = np.min(dispersion_data[0][:,1])
     for mode in range(n_modes):
-        ax3000.plot(dispersion_data[mode][:,0], dispersion_data[mode][:,1], linewidth=2, color=color)
+        axs2[1,2].plot(dispersion_data[mode][:,0], dispersion_data[mode][:,1], linewidth=1.5, color=color)
         if np.max(dispersion_data[mode][:,1]) > max_vr:
             max_vr = np.max(dispersion_data[mode][:,1])
         if np.min(dispersion_data[mode][:,1]) < min_vr:
             min_vr = np.min(dispersion_data[mode][:,1])
-        # Save dispersion data to file
-        # np.savetxt(f'./output/{name}_M{mode}_WT{WT}.txt', dispersion_data[mode], fmt='%f')
-    ax3000.set_xlim([min_f-5, max_f+5])
-    ax3000.set_ylim([min_vr-100, max_vr+100])
-    ax3000.set_xlabel('Frequency [Hz]')
-    ax3000.set_ylabel('P-SV phase vel. [m/s]')
-    fig3000.savefig('./output/3000.pdf', bbox_inches='tight')
+        # np.savetxt(f'./output/{name}_M{mode}_WT{WT}.txt', dispersion_data[mode], fmt='%f') # Save dispersion data to file
+    axs2[1,2].set_xlim([min_f-5, max_f+5])
+    axs2[1,2].set_ylim([min_vr-100, max_vr+100])
+    axs2[1,2].set_xlabel('Frequency [Hz]')
+    axs2[1,2].set_ylabel('P-SV phase vel. [m/s]')
     ### ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
 ### CONVERT PLOTS TO SINGLE PDF ---------------------------------------------------------------------------------------------------------------------
-plt.close('all')
-# Change directory
-os.chdir('./src')
-# Change file permissions
-run(['chmod', '+x', 'cropSANTILUDO.sh'])
-# Execute script with arguments
-run(['sh', 'cropSANTILUDO.sh', name])
-# Change back to previous directory
-os.chdir('..')
+pdf_filename = f"./output/{name}.SANTILUDO.pdf"
+pdf_pages = PdfPages(pdf_filename)
+
+pdf_pages.savefig(figPage1, bbox_inches='tight')
+pdf_pages.savefig(figPage2, bbox_inches='tight')
+
+pdf_pages.close()
 ### -------------------------------------------------------------------------------------------------------------------------------------------------
 
 
