@@ -188,19 +188,19 @@ for iWT, WT in enumerate(WTs) :
     # Saturation profile with depth
     hs, Sws, Swes = vanGen(zs, WT, soiltypes, thicknesses)
 
-    fig, axs = plt.subplots(2, 1)
-    fig.suptitle("vanGen")
-    axs[0].plot(hs, zs)
-    axs[0].axhline(-WT, color='gray', linestyle='--')
-    axs[0].set_xlabel('Pressure head h')
-    axs[0].set_ylabel('Depth z [m]')
-    axs[1].plot(Sws, zs, Swes, zs)
-    axs[1].axhline(-WT, color='gray', linestyle='--')
-    axs[1].set_xlabel('Saturation S')
-    axs[1].set_ylabel('Depth z [m]')
-    axs[1].legend(['Total saturation Sw', 'Effective wetting phase saturation Swe'])
-    axs[1].set_xlim([0,1.05])
-    fig.savefig(f'./output/1_vanGen_WT{WT}.png', bbox_inches='tight')
+    # fig, axs = plt.subplots(2, 1)
+    # fig.suptitle("vanGen")
+    # axs[0].plot(hs, zs)
+    # axs[0].axhline(-WT, color='gray', linestyle='--')
+    # axs[0].set_xlabel('Pressure head h')
+    # axs[0].set_ylabel('Depth z [m]')
+    # axs[1].plot(Sws, zs, Swes, zs)
+    # axs[1].axhline(-WT, color='gray', linestyle='--')
+    # axs[1].set_xlabel('Saturation S')
+    # axs[1].set_ylabel('Depth z [m]')
+    # axs[1].legend(['Total saturation Sw', 'Effective wetting phase saturation Swe'])
+    # axs[1].set_xlim([0,1.05])
+    # fig.savefig(f'./output/1_vanGen_WT{WT}.png', bbox_inches='tight')
 
 
     # Effective Grain Properties (constant with depth)
@@ -208,30 +208,30 @@ for iWT, WT in enumerate(WTs) :
                                       rho_silt, rho_sand, k_clay, k_silt,
                                       k_sand, soiltypes)
     
-    print('\nhillsAverage')
-    print(f'Shear moduli of grains: {mus = } [Pa]')
-    print(f'Bulk moduli of grains: {ks = } [Pa]')
-    print(f'Density of  grains: {rhos = } [kg/m3]')
-    print(f"Poisson's ratio: {nus = }")
-    print('\n')
+    # print('\nhillsAverage')
+    # print(f'Shear moduli of grains: {mus = } [Pa]')
+    # print(f'Bulk moduli of grains: {ks = } [Pa]')
+    # print(f'Density of  grains: {rhos = } [kg/m3]')
+    # print(f"Poisson's ratio: {nus = }")
+    # print('\n')
 
 
     # Effective Fluid Properties
     kfs, rhofs, rhobs = effFluid(Sws, kw, ka, rhow,
                                  rhoa, rhos, soiltypes, thicknesses, dz)
     
-    fig, axs = plt.subplots(2, 1)
-    fig.suptitle("effFluid")
-    axs[0].plot(kfs, zs)
-    axs[0].axhline(-WT, color='gray', linestyle='--')
-    axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
-    axs[0].set_ylabel('Depth z [m]')
-    axs[1].plot(rhofs, zs, rhobs, zs)
-    axs[1].axhline(-WT, color='gray', linestyle='--')
-    axs[1].set_xlabel('Density rho [kg/m3]')
-    axs[1].set_ylabel('Depth z [m]')
-    axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'])
-    fig.savefig(f'./output/3_effFluid_WT{WT}.png', bbox_inches='tight')
+    # fig, axs = plt.subplots(2, 1)
+    # fig.suptitle("effFluid")
+    # axs[0].plot(kfs, zs)
+    # axs[0].axhline(-WT, color='gray', linestyle='--')
+    # axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
+    # axs[0].set_ylabel('Depth z [m]')
+    # axs[1].plot(rhofs, zs, rhobs, zs)
+    # axs[1].axhline(-WT, color='gray', linestyle='--')
+    # axs[1].set_xlabel('Density rho [kg/m3]')
+    # axs[1].set_ylabel('Depth z [m]')
+    # axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'])
+    # fig.savefig(f'./output/3_effFluid_WT{WT}.png', bbox_inches='tight')
 
 
     # Hertz Mindlin Frame Properties
@@ -240,34 +240,34 @@ for iWT, WT in enumerate(WTs) :
                                mus, nus, fracs, kk,
                                soiltypes, thicknesses)
     
-    fig, ax = plt.subplots()
-    fig.suptitle("hertzMindlin")
-    ax.plot(KHMs, zs)
-    ax.plot(muHMs, zs)
-    ax.axhline(-WT, color='gray', linestyle='--')
-    ax.set_xlabel('Pressure [Pa]')
-    ax.set_ylabel('Depth z [m]')
-    ax.legend(['Effective bulk KHM', 'Shear moduli muHM'])
-    ax.set_xlim([1.3e8,2.5e8])
-    fig.savefig(f'./output/4_hertzMindlin_WT{WT}.png', bbox_inches='tight')
+    # fig, ax = plt.subplots()
+    # fig.suptitle("hertzMindlin")
+    # ax.plot(KHMs, zs)
+    # ax.plot(muHMs, zs)
+    # ax.axhline(-WT, color='gray', linestyle='--')
+    # ax.set_xlabel('Pressure [Pa]')
+    # ax.set_ylabel('Depth z [m]')
+    # ax.legend(['Effective bulk KHM', 'Shear moduli muHM'])
+    # ax.set_xlim([1.3e8,2.5e8])
+    # fig.savefig(f'./output/4_hertzMindlin_WT{WT}.png', bbox_inches='tight')
 
 
     # Saturated Properties
     VPs, VSs = biotGassmann(KHMs, muHMs, ks, kfs,
                             rhobs, soiltypes, thicknesses, dz)
     
-    fig, ax = plt.subplots()
-    fig.suptitle("biotGassmann")
-    ax.plot(VPs, zs)
-    ax.plot(VSs, zs)
-    ax.axhline(-WT, color='gray', linestyle='--')
-    ax.set_xlabel('Velocity [m/s]')
-    ax.set_ylabel('Depth z [m]')
-    ax.legend(['Vp', 'Vs'])
-    fig.savefig(f'./output/5_biotGassmann_WT{WT}.png', bbox_inches='tight')
+    # fig, ax = plt.subplots()
+    # fig.suptitle("biotGassmann")
+    # ax.plot(VPs, zs)
+    # ax.plot(VSs, zs)
+    # ax.axhline(-WT, color='gray', linestyle='--')
+    # ax.set_xlabel('Velocity [m/s]')
+    # ax.set_ylabel('Depth z [m]')
+    # ax.legend(['Vp', 'Vs'])
+    # fig.savefig(f'./output/5_biotGassmann_WT{WT}.png', bbox_inches='tight')
 
 
-    plt.close('all')
+    # plt.close('all')
     ### ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
