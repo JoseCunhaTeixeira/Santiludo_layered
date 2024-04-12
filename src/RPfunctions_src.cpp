@@ -212,10 +212,14 @@ hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
 
     std::vector<double> KHM(num_points); // Effective bulk modulus over depth
     std::vector<double> muHM(num_points); // Effective shear modulus over depth
+    
+    std::vector<double> Pe(num_points); // Overburden stress over depth
 
     double dz = fabs(z[1] - z[0]); // Depth discretization
 
     int start = 0; // Depth start index for fisrt layer
+
+    double sigma_prev = 0; // Previous overburden stress
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
         std::string soilType = soiltypes[j]; // Soil type for current layer
@@ -227,17 +231,20 @@ hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
 
         for (int i = start; i < end; ++i) {
 
-            double St = (h[i] <= 0) ? 0 : Swe[i] * rhow * g * h[i]; // Suction term | Null when fully saturated
+            double sigma = rhob[i] * g * dz + sigma_prev; // Overburden stress
+            sigma_prev = sigma;
 
             double dep = fabs(z[i]); // Depth (positive value)
-
+            double St = (h[i] <= 0) ? 0 : Swe[i] * rhow * g * h[i]; // Suction term | Null when fully saturated
+            double Pa = rhoa * g * dep; // Air pressure
             double Pe; // Effective stress
+            
             if (kk == 1) {
                 Pe = 101325;
             } else if (kk == 2) {
-                Pe = rhob[i] * g * dep - rhoa * g * dep;
+                Pe = sigma - Pa;
             } else if (kk == 3) {
-                Pe = rhob[i] * g * dep - rhoa * g * dep + St;
+                Pe = sigma - Pa + St;
             } else {
                 throw std::invalid_argument("Invalid value for kk");
             }
