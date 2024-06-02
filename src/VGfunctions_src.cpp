@@ -15,7 +15,7 @@ struct selectSoilType_Result{
 
 
 
-selectSoilType_Result selectSoilType_src(const std::string& soiltype) {
+selectSoilType_Result selectSoilType_src(const std::string_view& soiltype) {
     // ==========================================
     // Based on:
     // - Carsel, R. F., & Parrish, R. S. (1988). 
@@ -52,8 +52,7 @@ selectSoilType_Result selectSoilType_src(const std::string& soiltype) {
         soil.alpha = 0.8;
         soil.nvg = 1.09;
         soil.theta = 0.068;
-        soil.Swr = soil.theta / soil.phi;
-    }
+        soil.Swr = soil.theta / soil.phi;    }
     else if (soiltype == "silt") {
         soil.wsand = 0.058;
         soil.wclay = 0.095;
@@ -62,8 +61,7 @@ selectSoilType_Result selectSoilType_src(const std::string& soiltype) {
         soil.alpha = 1.6;
         soil.nvg = 1.37;
         soil.theta = 0.034;
-        soil.Swr = soil.theta / soil.phi;
-    }
+        soil.Swr = soil.theta / soil.phi;    }
     else if (soiltype == "clayloam") {
         soil.wsand = 0.298;
         soil.wclay = 0.326;
@@ -145,8 +143,8 @@ selectSoilType_Result selectSoilType_src(const std::string& soiltype) {
 
 
 
-vanGen_Result vanGen_src(std::vector<double> z,
-                         double WT,
+vanGen_Result vanGen_src(const std::vector<double>& z,
+                         const double& WT,
                          const std::vector<std::string>& soiltypes,
                          const std::vector<double>& thicknesses) {
     // ==========================================
@@ -181,7 +179,7 @@ vanGen_Result vanGen_src(std::vector<double> z,
     int start = 0; // Depth start index for fisrt layer
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
         
         int end = round(thickness / dz) + start; // Depth end index for current layer

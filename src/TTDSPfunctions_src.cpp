@@ -1,9 +1,7 @@
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 #include <string>
 #include <sstream>
-#include <omp.h>
 #include <algorithm>
 
 
@@ -12,8 +10,8 @@ std::string writeVelocityModel_src(const std::vector<double>& thk,
                         const std::vector<double>& vp,
                         const std::vector<double>& vs,
                         const std::vector<double>& rho,
-                        const std::string under_layers,
-                        const int n_under_layers) {
+                        const std::string_view& under_layers,
+                        const int& n_under_layers) {
     // ==========================================
     // Returns a string of the velocity model in a format expected by GPDC
     //
@@ -35,7 +33,7 @@ std::string writeVelocityModel_src(const std::vector<double>& thk,
 
     int nl = thk.size(); // Number of layers
     std::stringstream velocity_model; // String to store the velocity model
-    velocity_model << nl+n_under_layers << '\n'; // Number of layers in the velocity model
+    velocity_model << nl + n_under_layers << '\n'; // Number of layers in the velocity model
 
     // Write thickness and velocity in dinver format
     for (int i = 0; i < nl; ++i) {
@@ -57,11 +55,10 @@ std::string writeVelocityModel_src(const std::vector<double>& thk,
 
 
 
-// WITH PARALLELIZATION - Must be compiled with '-fopenmp' in setup.py and needs #include <omp.h>
 std::vector<double> firstArrival_src(const std::vector<double>& thk,
                                      const std::vector<double>& vv,
                                      const std::vector<double>& Xdata,
-                                     double trig) {
+                                     const double& trig) {
     // ==========================================
     // Computes S- or P-wave first arrivals
     //
@@ -78,83 +75,35 @@ std::vector<double> firstArrival_src(const std::vector<double>& thk,
     // Firstly implemented in Matlab by L. Bodet in Solazzi et al. (2021)
     // Traduced in C++ by J. Cunha Teixeira in 2024/03
     // ==========================================
-    
-    std::vector<double> Thod(Xdata.size(), 0.0); // Hodochrone table
-    std::vector<double> Tz(thk.size(), 0.0); // Intercepts
 
-    // Calculating intercepts in parallel
-#pragma omp parallel for
-    for (int inl = 0; inl < static_cast<int>(thk.size()); ++inl) {
+    size_t rows = thk.size();
+    size_t cols = Xdata.size();
+    std::vector<double> Tr(rows*cols, 0.0); // arrival time table as a flatten array
+
+    std::vector<double> Thod(cols, 0.0); // hodochrone table
+    std::vector<double> Tz(rows, 0.0); // intercepts
+
+    // Calculating intercepts
+    for (size_t inl = 0; inl < rows; ++inl) {
         double Tzc = 0.0;
-        for (size_t inltz = 0; inltz <= static_cast<size_t>(inl); ++inltz) {
+        for (size_t inltz = 0; inltz <= inl; ++inltz) {
             Tzc += 2 * thk[inltz] / vv[inltz] * sqrt(1 - vv[inltz] * vv[inltz] / (vv[inl] * vv[inl]));
         }
         Tz[inl] = Tzc;
+
+        for (size_t ix = 0; ix < cols; ++ix) {
+            Tr[inl + ix * rows] = Xdata[ix] / vv[inl] + Tz[inl];
+        }
     }
 
     // Finding minimum arrival time for each Xdata point and adding trigger
-#pragma omp parallel for
-    for (size_t ix = 0; ix < Xdata.size(); ++ix) {
-        double min_time = Xdata[ix] / vv[0] + Tz[0];
-        for (size_t inl = 1; inl < thk.size(); ++inl) {
-            double arrival_time = Xdata[ix] / vv[inl] + Tz[inl];
-            min_time = (arrival_time < min_time) ? arrival_time : min_time;
+    for (size_t ix = 0; ix < cols; ++ix) {
+        double min_time = Tr[0 + ix * rows];
+        for (size_t inl = 1; inl < rows; ++inl) {
+            min_time = std::min(min_time, Tr[inl + ix * rows]);
         }
         Thod[ix] = min_time + trig;
     }
 
     return Thod;
 }
-
-
-
-// WITHOUT PARALLELIZATION - Do not need to be compiled with '-fopenmp' in setup.py and #include <omp.h>
-// std::vector<double> firstArrival_src(const std::vector<double>& thk,
-//                                      const std::vector<double>& vv,
-//                                      const std::vector<double>& Xdata,
-//                                      double trig) {
-//     // ==========================================
-//     // Computes S- or P-wave first arrivals
-//     //
-//     // Parameters:
-//     // vector<double> thk: thickness of each layer [m]
-//     // vector<double> vv: velocity of each layer [m/s]
-//     // vector<double> Xdata: distance from the source to the receiver [m]
-//     // double trig: trigger time [s]
-//     //
-//     // Outputs:
-//     // vector<double> Thod: hodochrone table
-//     //
-//     // Programmers:
-//     // Firstly implemented in Matlab by L. Bodet in Solazzi et al. (2021)
-//     // Traduced in C++ by J. Cunha Teixeira in 2024/03
-//     // ==========================================
-
-//     std::vector<std::vector<double>> Tr(thk.size(), std::vector<double>(Xdata.size(), 0.0)); // arrival time table
-//     std::vector<double> Thod(Xdata.size(), 0.0); // hodochrone table
-//     std::vector<double> Tz(thk.size(), 0.0); // intercepts
-
-//     // Calculating intercepts
-//     for (size_t inl = 0; inl < thk.size(); ++inl) {
-//         double Tzc = 0.0;
-//         for (size_t inltz = 0; inltz <= inl; ++inltz) {
-//             Tzc += 2 * thk[inltz] / vv[inltz] * sqrt(1 - vv[inltz] * vv[inltz] / (vv[inl] * vv[inl]));
-//         }
-//         Tz[inl] = Tzc;
-
-//         for (size_t ix = 0; ix < Xdata.size(); ++ix) {
-//             Tr[inl][ix] = Xdata[ix] / vv[inl] + Tz[inl];
-//         }
-//     }
-
-//     // Finding minimum arrival time for each Xdata point and adding trigger
-//     for (size_t ix = 0; ix < Xdata.size(); ++ix) {
-//         double min_time = Tr[0][ix];
-//         for (size_t inl = 1; inl < thk.size(); ++inl) {
-//             min_time = std::min(min_time, Tr[inl][ix]);
-//         }
-//         Thod[ix] = min_time + trig;
-//     }
-
-//     return Thod;
-// }

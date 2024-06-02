@@ -1,7 +1,6 @@
 #include <cmath>
-#include <stdexcept>
 #include <vector>
-#include "VGfunctions_src.cpp"
+#include "VGfunctions_src.h"
 
 
 
@@ -23,15 +22,15 @@ struct hillsAverage_Result {
 
 
 
-hillsAverage_Result hillsAverage_src(double mu_clay,
-                                     double mu_silt,
-                                     double mu_sand,
-                                     double rho_clay,
-                                     double rho_silt,
-                                     double rho_sand,
-                                     double k_clay,
-                                     double k_silt,
-                                     double k_sand,
+hillsAverage_Result hillsAverage_src(const double& mu_clay,
+                                     const double& mu_silt,
+                                     const double& mu_sand,
+                                     const double& rho_clay,
+                                     const double& rho_silt,
+                                     const double& rho_sand,
+                                     const double& k_clay,
+                                     const double& k_silt,
+                                     const double& k_sand,
                                      const std::vector<std::string>& soiltypes) {
     // ==========================================
     // Computes the effective properties of the solid grains from its constituents
@@ -67,7 +66,7 @@ hillsAverage_Result hillsAverage_src(double mu_clay,
     std::vector<double> nus(soiltypes.size()); // Poisson's ratios of each layer
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
 
         selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
 
@@ -95,15 +94,15 @@ hillsAverage_Result hillsAverage_src(double mu_clay,
 
 
 
-effFluid_Result effFluid_src(std::vector<double> Sws,
-                             double kw,
-                             double ka,
-                             double rhow,
-                             double rhoa,
-                             std::vector<double> rhos,
+effFluid_Result effFluid_src(const std::vector<double>& Sws,
+                             const double& kw,
+                             const double& ka,
+                             const double& rhow,
+                             const double& rhoa,
+                             const std::vector<double>& rhos,
                              const std::vector<std::string>& soiltypes,
                              const std::vector<double>& thicknesses,
-                             double dz) {
+                             const double& dz) {
     // ==========================================
     // Computes effective fluid properties and bulk density
     //
@@ -139,7 +138,7 @@ effFluid_Result effFluid_src(std::vector<double> Sws,
     int start = 0; // Depth start index for fisrt layer
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
         selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
@@ -164,18 +163,18 @@ effFluid_Result effFluid_src(std::vector<double> Sws,
 
 
 
-hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
-                                     std::vector<double> z,
-                                     std::vector<double> h,
-                                     std::vector<double> rhob,
-                                     double g,
-                                     double rhoa,
-                                     double rhow,
-                                     std::vector<double> Ns,
-                                     std::vector<double> mus,
-                                     std::vector<double> nus,
-                                     std::vector<double> fracs,
-                                     int kk,
+hertzMindlin_Result hertzMindlin_src(const std::vector<double>& Swe,
+                                     const std::vector<double>& z,
+                                     const std::vector<double>& h,
+                                     const std::vector<double>& rhob,
+                                     const double& g,
+                                     const double& rhoa,
+                                     const double& rhow,
+                                     const std::vector<double>& Ns,
+                                     const std::vector<double>& mus,
+                                     const std::vector<double>& nus,
+                                     const std::vector<double>& fracs,
+                                     const int& kk,
                                      const std::vector<std::string>& soiltypes,
                                      const std::vector<double>& thicknesses) {
     // ==========================================
@@ -189,7 +188,7 @@ hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
     // double g: gravity [m/s2]
     // double rhoa: air density [Kg/m3]
     // double rhow: water density [Kg/m3]
-    // vector[double] Ns: shear modulus of grain of each layer [GPa]
+    // vector[double] Ns: coordination number of each layer [-]
     // vector[double] mus: Shear moduli of grain of each layer [GPa]
     // vector[double] nus: Poisson's ratios of each layer [-]
     // vector[double] fracs: fraction of non-slipping grains of each layer [-]
@@ -222,7 +221,7 @@ hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
     double sigma_prev = 0; // Previous overburden stress
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
         selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
@@ -264,14 +263,14 @@ hertzMindlin_Result hertzMindlin_src(std::vector<double> Swe,
 
 
 
-biotGassmann_Result biotGassmann_src(std::vector<double> KHM,
-                                     std::vector<double> muHM,
-                                     std::vector<double> ks,
-                                     std::vector<double> kf,
-                                     std::vector<double> rhob,
+biotGassmann_Result biotGassmann_src(const std::vector<double>& KHM,
+                                     const std::vector<double>& muHM,
+                                     const std::vector<double>& ks,
+                                     const std::vector<double>& kf,
+                                     const std::vector<double>& rhob,
                                      const std::vector<std::string>& soiltypes,
                                      const std::vector<double>& thicknesses,
-                                     double dz) {
+                                     const double& dz) {
     // ==========================================
     // Biot Gassman equations
     //
@@ -304,7 +303,7 @@ biotGassmann_Result biotGassmann_src(std::vector<double> KHM,
     int start = 0; // Depth start index for fisrt layer
 
     for (size_t j = 0; j < soiltypes.size(); ++j) {
-        std::string soilType = soiltypes[j]; // Soil type for current layer
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
         selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
