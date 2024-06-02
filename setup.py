@@ -12,14 +12,14 @@ if not os.path.exists("./lib/"):
 
 
 extensions = [
-    Extension("lib.RPfunctions", 
-                ["src/RPfunctions.pyx"],
+    Extension("lib.VGfunctions", 
+                ["src/VGfunctions.pyx"],
                 language="c++",
                 extra_compile_args=["-O3"],
                 extra_link_args=["-O3"]),
 
-    Extension("lib.VGfunctions", 
-                ["src/VGfunctions.pyx"],
+    Extension("lib.RPfunctions", 
+                ["src/RPfunctions.pyx", "src/VGfunctions_src.cpp"],
                 language="c++",
                 extra_compile_args=["-O3"],
                 extra_link_args=["-O3"]),
@@ -27,8 +27,8 @@ extensions = [
     Extension("lib.TTDSPfunctions", 
                 ["src/TTDSPfunctions.pyx"],
                 language="c++",
-                extra_compile_args=["-fopenmp", "-O3"],
-                extra_link_args=["-fopenmp", "-O3"]),
+                extra_compile_args=["-O3"],
+                extra_link_args=["-O3"]),
 ]
 
 setup(
