@@ -108,7 +108,7 @@ rho_sand = 2600.0
 
 # Soil layers
 soiltypes = ['sand', 'clay'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
-thicknesses = [5, 10] # Layer thicknesses [m]
+thicknesses = [5, 5] # Layer thicknesses [m]
 
 # Grains/agregate parameters per layer
 Ns = [8, 8] # Coordination Number (number of contact per grain) | default = 8
@@ -318,6 +318,8 @@ for iWT, WT in enumerate(WTs) :
         for soiltype, thickness in zip(soiltypes, thicknesses):
             name += f"{soiltype}{thickness}_"
         name = name[:-1]
+        if n_under_layers != 0:
+            name += "_substratum"
 
 
 
