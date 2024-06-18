@@ -13,8 +13,7 @@ import numpy as np
 cdef extern from "TTDSPfunctions_src.cpp":
     string writeVelocityModel_src(vector[double] thk, vector[double] vp, vector[double] vs,  vector[double] rho, string substratum, int n_layers_substratum)
     vector[double] firstArrival_src(vector[double] thk, vector[double] vv, vector[double] Xdata, double trig)
-
-
+    
 
 # Define Python wrapper functions
 def writeVelocityModel(thk, vp, vs, rho, substratum, n_layers_substratum):
@@ -28,7 +27,6 @@ def firstArrival(thk, vv, Xdata, trig):
     cdef vector[double] result = firstArrival_src(thk_cpp, vv_cpp, Xdata_cpp, trig)
     Thod = np.array(result)
     return Thod
-
 
 
 # Define a Python function

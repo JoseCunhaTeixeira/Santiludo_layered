@@ -317,7 +317,6 @@ biotGassmann_Result biotGassmann_src(const std::vector<double>& KHM,
 
             Vp[i] = sqrt((K + (4.0 / 3.0) * muHM[i]) / rhob[i]); // P-wave velocity
             Vs[i] = sqrt(muHM[i] / rhob[i]); // S-wave velocity
-
         }
         start = end; // Update start index for next layer
     }
