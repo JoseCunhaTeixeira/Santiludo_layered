@@ -62,7 +62,7 @@ from matplotlib.cm import copper
 from matplotlib.backends.backend_pdf import PdfPages
 from time import perf_counter
 from io import StringIO
-from subprocess import run, PIPE
+from subprocess import run, PIPE, CalledProcessError
 
 # Cython shared libraries for C++ and Cython functions
 from lib.VGfunctions import vanGen
@@ -107,20 +107,20 @@ rho_silt = 2600.0
 rho_sand = 2600.0
 
 # Soil layers
-soiltypes = ['sand', 'clay'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
-thicknesses = [5, 5] # Layer thicknesses [m]
+soiltypes = ['silt', 'clay', 'sand'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
+thicknesses = [1, 3, 16] # Layer thicknesses [m]
 
 # Grains/agregate parameters per layer
-Ns = [8, 8] # Coordination Number (number of contact per grain) | default = 8
-fracs = [0.3, 0.3] # Fraction of non-slipping grains (helps making the soil less stiff) | default = 0.3
+Ns = [2, 1, 2] # Coordination Number (number of contact per grain) | default = 8
+fracs = [0.3, 0.3, 0.3] # Fraction of non-slipping grains (helps making the soil less stiff) | default = 0.3
 
 # Water table
-WTs = [1, 2, 3, 4, 5] # Water table depths [m]
+WTs = [0.5, 1.0] # Water table depths [m]
 color_map = copper(np.linspace(0, 1, len(WTs))) # Colorscale for plots if several WT tested
 
 # Geometry and discretisation of the medium
 depth = np.sum(thicknesses) # Depth of the soil column [m]
-dz = 0.01 # Depth sample interval [m]
+dz = 0.1 # Depth sample interval [m]
 top_surface_level = dz # Altitude of the soil surface[m]
 zs = -np.arange(top_surface_level, depth + dz, dz) # Depth positions (negative downward) [m]
 NbCells = len(zs) - 1 # Number of exploration points in depth [#]
@@ -138,7 +138,7 @@ kk = 3 # Pe with suction (cf. Solazzi et al. 2021)
 # In GPDC format : "thickness Vp Vs rho\n"
 # Each layer is separated by \n | Only spaces between values | Last layer thickness must be 0)
 # under_layers = "" # Empty string if no under layers
-under_layers = "10 2000 1000 2000\n0 4500 2000 2500\n" # One sublayer + one substratum layer
+under_layers = "10 1500 750 2000\n0 4000 2000 2500\n" # One sublayer + one substratum layer
 n_under_layers = under_layers.count('\n') # Number of under layers
 
 
@@ -153,10 +153,11 @@ trig  = 0 # data pretrig (if needed)
 
 
 # Frequency domain and sampling setup to compute dispersion
-nf = 99 # number of frequency samples [#]
+nf = 100 # number of frequency samples [#]
 df = 1 # frequency sample interval [Hz]
 min_f = 1 # minimum frequency [Hz]
 max_f = min_f + (nf - 1) * df
+
 
 n_modes = 1 # Number of modes to compute
 s = 'frequency' # Over frequencies mode
@@ -282,11 +283,25 @@ for iWT, WT in enumerate(WTs) :
 
     # Dispersion curves computing with GPDC
     velocity_model_RAMfile = StringIO(velocity_model_string) # Keep velocity model string in the RAM in a file format alike to trick GPDC which expects a file
-    gpdc_command = [f"gpdc -{wave} {n_modes} -n {nf} -min {min_f} -max {max_f} -s {s} -j 16"]
-    gpdc_output_string = run(gpdc_command, input=velocity_model_RAMfile.getvalue(), text=True, shell=True, stdout=PIPE).stdout # raw output string from GPDC
+    gpdc_command = [f"gpdc -{wave} {n_modes} -n {nf} -min {min_f} -max {max_f} -s {s}"]
 
+    try:
+        process = run(gpdc_command, input=velocity_model_RAMfile.getvalue(), text=True, shell=True, stdout=PIPE, stderr=PIPE, check=True) # Raw output string from GPDC
+    except CalledProcessError as e:
+        print(f"\nERROR during GPDC computation. Returned:\n{e.stdout}")
+        print("Used parameters:")
+        print(f'{soiltypes = }')
+        print(f'{thicknesses = }')
+        print(f'{Ns = }')
+        print(f'{fracs = }')
+        print(f'{WT = }')
+        print(f'{dz = }\n')
+        print('INFO : Try to reduce dz\n')
+        raise
+
+    gpdc_output_string = process.stdout # Raw output string from GPDC
     dispersion_data, n_modes = readDispersion(gpdc_output_string) # Reads GPDC output and converts dispersion data to a list of numpy arrays for each mode
-                                                                  # Updates number of computed modes (can be lower than what was defined if frequency range too small)
+                                                                # Updates number of computed modes (can be lower than what was defined if frequency range too small)
     ### ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -434,3 +449,4 @@ pdf_pages.close()
 end = perf_counter()
 print(f"\nElapsed time : {end-start} s\n")
 ### -------------------------------------------------------------------------------------------------------------------------------------------------
+
