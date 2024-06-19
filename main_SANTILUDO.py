@@ -183,7 +183,7 @@ for i, layer in enumerate(layers) :
 
 
 
-# Runnung the program for each water table depth
+# Running the program for each water table depth
 for iWT, WT in enumerate(WTs) :
     #### ROCK PHYSICS -------------------------------------------------------------------------------------------------------------------------------
     # Saturation profile with depth
