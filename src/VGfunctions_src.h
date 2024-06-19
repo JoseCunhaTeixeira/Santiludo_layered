@@ -5,17 +5,17 @@
 #include <vector>
 #include <string>
 
-struct vanGen_Result {
-    std::vector<double> h, Sw, Swe;
+struct vanGenResult {
+    std::vector<double> h, s_w, s_we;
 };
 
-struct selectSoilType_Result {
-    double wsand, wclay, wsilt, phi, alpha, nvg, theta, Swr;
+struct soilType {
+    double wsand, wclay, wsilt, phi, alpha, nvg, theta, s_wr;
 };
 
-selectSoilType_Result selectSoilType_src(const std::string_view& soiltype);
+soilType selectSoilTypeSrc(const std::string_view& soil_type);
 
-vanGen_Result vanGen_src(const std::vector<double>& z,
-                         const double& WT,
-                         const std::vector<std::string>& soiltypes,
+vanGenResult vanGenSrc(const std::vector<double>& z,
+                         const double& wt,
+                         const std::vector<std::string>& soil_types,
                          const std::vector<double>& thicknesses);

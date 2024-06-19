@@ -11,20 +11,19 @@ import numpy as np
 
 # Import the C++ function declaration
 cdef extern from "TTDSPfunctions_src.cpp":
-    string writeVelocityModel_src(vector[double] thk, vector[double] vp, vector[double] vs,  vector[double] rho, string substratum, int n_layers_substratum)
-    vector[double] firstArrival_src(vector[double] thk, vector[double] vv, vector[double] Xdata, double trig)
-    
+    string writeVelocityModelSrc(vector[double] thk, vector[double] v_p, vector[double] v_s,  vector[double] rho, string substratum, int n_layers_substratum)
+    vector[double] firstArrivalSrc(vector[double] thk, vector[double] vv, vector[double] Xdata, double trig)
 
 # Define Python wrapper functions
-def writeVelocityModel(thk, vp, vs, rho, substratum, n_layers_substratum):
-    cdef string velocity_model = writeVelocityModel_src(thk, vp, vs, rho, substratum, n_layers_substratum)
+def writeVelocityModel(thk, v_p, v_s, rho, substratum, n_layers_substratum):
+    cdef string velocity_model = writeVelocityModelSrc(thk, v_p, v_s, rho, substratum, n_layers_substratum)
     return velocity_model
 
 def firstArrival(thk, vv, Xdata, trig):
     cdef vector[double] thk_cpp = thk
     cdef vector[double] vv_cpp = vv
     cdef vector[double] Xdata_cpp = Xdata
-    cdef vector[double] result = firstArrival_src(thk_cpp, vv_cpp, Xdata_cpp, trig)
+    cdef vector[double] result = firstArrivalSrc(thk_cpp, vv_cpp, Xdata_cpp, trig)
     Thod = np.array(result)
     return Thod
 

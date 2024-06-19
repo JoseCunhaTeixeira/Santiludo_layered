@@ -11,22 +11,22 @@ from libcpp.string cimport string
 # Import the C++ function declaration
 cdef extern from "VGfunctions_src.cpp":
 
-    struct vanGen_Result:
-        vector[double] h, Sw, Swe
+    struct vanGenResult:
+        vector[double] h, s_w, s_we
 
-    struct selectSoilType_Result:
-        double wsand, wclay, wsilt, phi, alpha, nvg, theta, Swr
+    struct soilType:
+        double wsand, wclay, wsilt, phi, alpha, nvg, theta, s_wr
 
-    vanGen_Result vanGen_src(vector[double] z, double WT, vector[string] soiltypes, vector[double] thicknesses)
-    selectSoilType_Result selectSoilType_src(string soiltype)
+    vanGenResult vanGenSrc(vector[double] z, double wt, vector[string] soil_types, vector[double] thicknesses)
+    soilType selectSoilTypeSrc(string soil_type)
 
 
 
 # Define Python wrapper functions
-def vanGen(vector[double] z, double WT, vector[string] soiltypes, vector[double] thicknesses):
-    cdef vanGen_Result result = vanGen_src(z, WT, soiltypes, thicknesses)
-    return result.h, result.Sw, result.Swe
+def vanGen(vector[double] z, double wt, vector[string] soil_types, vector[double] thicknesses):
+    cdef vanGenResult result = vanGenSrc(z, wt, soil_types, thicknesses)
+    return result.h, result.s_w, result.s_we
 
-def selectSoilType(string soiltype):
-    cdef selectSoilType_Result result = selectSoilType_src(soiltype)
-    return result.wsand, result.wclay, result.wsilt, result.phi, result.alpha, result.nvg, result.theta, result.Swr 
+def selectSoilType(string soil_type):
+    cdef soilType result = selectSoilTypeSrc(soil_type)
+    return result.wsand, result.wclay, result.wsilt, result.phi, result.alpha, result.nvg, result.theta, result.s_wr 
