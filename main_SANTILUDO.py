@@ -1,7 +1,7 @@
 """
 PROGRAM SANTILUDO
 - Programmers: *S.G. Solazzi & L. Bodet* (vanGen.m courtesy of D. Jougnot)
-- Frist version: *2020/07/14*
+- First version: *2020/07/14*
 - Last update (first draft with synthetic computation) on 2022/03
 - Some minor modifs 2024/03
 - Converted to C++, and interfaced with Python, on 2024/03 by J. Cunha Teixeira
@@ -26,7 +26,7 @@ https://doi.org/10.1029/2021JB022074
   Source code is stored in ./src folder.
   Functions are written in C++ file (*.cpp) and wrapped in Cython file (*.pyx) to be compiled
   as a shared library and called in Python.
-  - Source functions in C++ are named as nameFunction_src
+  - Source functions in C++ are named as nameFunctionSrc
   - Wapped functions in Cython to be called in Python are named as nameFunction
   -> If you change the header of a function in the *.cpp, you must change it on the *.pyx file also.
 
@@ -183,7 +183,7 @@ for i, layer in enumerate(layers) :
 
 
 
-# Runnung the program for each water table depth
+# Running the program for each water table depth
 for iWT, WT in enumerate(WTs) :
     #### ROCK PHYSICS -------------------------------------------------------------------------------------------------------------------------------
     # Saturation profile with depth

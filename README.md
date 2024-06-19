@@ -7,9 +7,9 @@
 
 ## Objectives:
 This program takes the hydromechanical properties of a partially saturated 1D soil for a given steady-state condition and computes:
-- (i)   The saturation profile in depth ;
-- (ii)  The variations of Vp, Vs, and rho with saturation (depth) ;    
-- (iii) The P-wave first arrival times and suface-wave dispersion for a given linear acquisition setup.
+1)   The saturation profile in depth ;
+2)  The variations of Vp, Vs, and rho with saturation (depth) ;    
+3) The P-wave first arrival times and suface-wave dispersion for a given linear acquisition setup.
 
 ## Reference
 Solazzi, S. G., Bodet, L., Holliger, K., & Jougnot, D. (2021). Surface-wave dispersion in partially saturated soils: The role of capillary forces. Journal of Geophysical Research: Solid Earth, 126, e2021JB022074. 
@@ -19,35 +19,39 @@ https://doi.org/10.1029/2021JB022074
 -> this code makes it possible to compute figures 5 and 6 (but also the others, if you manage some minor modifs...)
 
 ## Dependencies:
-  Source code is stored in ./src folder.
-  Functions are written in C++ file (*.cpp) and wrapped in Cython file (*.pyx) to be compiled
+  Source code is stored in `./src` folder.
+  Functions are written in C++ file (`*.cpp`) and wrapped in Cython file (`*.pyx`) to be compiled
   as a shared library and called in Python.
-  - Source functions in C++ are named as nameFunction_src
+  - Source functions in C++ are named as `nameFunctionSrc`
   - Wapped functions in Cython to be called in Python are named as nameFunction
-  -> If you change the header of a function in the *.cpp, you must change it on the *.pyx file also.
+  -> If you change the header of a function in the `*.cpp`, you must change it on the `*.pyx` file also.
 
-  ### C++ functions for RP and VG models are stored in ./src/RPfunctions_src.cpp and ./src/GVfunctions_src.cpp:
-      - ./src/GVfunctions_src.cpp/vanGen_src -> to compute Saturation from...
-      - ./src/GVfunctions_src.cpp/hillsAverage_src -> to compute ... from ...
-      - ...
-  ### Seismic data forward modelling utils stored in ./src/TTDSPfunctions_src.cpp :
-      - ./src/TTDSPfunctions_src.cpp/firstArrival_src -> compute P- or S-wave first arrival times from a 1D velocity model
-      + *gpdc* -> code (to be compiled and called) from https://www.geopsy.org 
-          to to compute surface-wave dispersion from a 1D velocity model
-      + I/O functions:
-      - ./src/TTDSPfunctions_src.cpp/dinSave_src -> create 1D velocity models readable by *gpdc*
-      - ./src/TTDSPfunctions_src.cpp/readDisp -> Only function not wtitten in C++ but directly in Cython in the *.pyx file - reads dispersion curves created by *gpdc*
- ### Utils in bash and or latex to plot results ./src folder:
-      - *cropSANTILUDO.sh* (as to be chmod +x...) 
-      - ...
+  ### C++ functions for RP and VG models are stored in ./src/RPfunctions_src.cpp and ./src/GVfunctions_src.cpp:  
+- ./src/VGfunctions_src.cpp/vanGen_src -> to compute Saturation from...
+- ./src/VGfunctions_src.cpp/hillsAverage_src -> to compute ... from ...
+- ...
+  ### Seismic data forward modelling utils stored in ./src/TTDSPfunctions_src.cpp :  
+- ./src/TTDSPfunctions_src.cpp/firstArrival_src -> compute P- or S-wave first arrival times from a 1D velocity model
+- *gpdc* -> code (to be compiled and called) from https://www.geopsy.org 
+          to compute surface-wave dispersion from a 1D velocity model
+- I/O functions:
+    - ./src/TTDSPfunctions_src.cpp/dinSave_src -> create 1D velocity models readable by *gpdc*
+    - ./src/TTDSPfunctions_src.cpp/readDisp -> Only function not written in C++ but directly in Cython in the `*.pyx` file - reads dispersion curves created by *gpdc*
+ ### Utils in bash and or latex to plot results ./src folder:  
+- *cropSANTILUDO.sh* (as to be chmod +x...) 
+- ...
 
 ## Compilation is done with the setup.py file :
+```sh
 python3 setup.py build_ext --inplace clean
-This creates a ./build and ./bib directories, with the last containing the shared libraries *.so
-that can be used in Python and the resulting *.cpp files from the *.pyx compilation
+```
+This creates a `./build` and `./bib` directories, with the last containing the shared libraries `*.so`
+that can be used in Python and the resulting `*.cpp` files from the `*.pyx` compilation
 
 ## Running the main script :
+```sh
 python3 main_SANTILUDO.py
+```
 
 ## Comments:
 This is a quickly written prototype. A lot to do to improve this code :
