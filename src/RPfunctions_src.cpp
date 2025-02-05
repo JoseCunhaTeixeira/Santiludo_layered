@@ -4,51 +4,25 @@
 
 
 
-struct effFluidResult {
-    std::vector<double> k_f; // Effective compressibility over depth [Pa^-1]
-    std::vector<double> rho_f; // Effective fluid density over depth [Kg/m3]
-    std::vector<double> rho_b; // Bulk density over depth [Kg/m3]
+struct effFluid_Result {
+    std::vector<double> kf, rhof, rhob;
 };
 
-struct biotGassmannResult {
-    std::vector<double> v_p; // P-wave velocity [m/s]
-    std::vector<double> v_s; // S-wave velocity [m/s]
+struct biotGassmann_Result {
+    std::vector<double> Vp, Vs;
 };
 
-struct hertzMindlinResult {
-    std::vector<double> k_m; // Effective bulk modulus over depth [Pa]
-    std::vector<double> mu_m; // Effective shear modulus over depth [Pa]
+struct hertzMindlin_Result {
+    std::vector<double> KHM, muHM;
 };
 
-struct hillsAverageResult {
-    std::vector<double> mu_s; // Shear moduli of grain of each layer [Pa]
-    std::vector<double> k_s; // Bulk moduli of grain of each layer [Pa]
-    std::vector<double> rho_s; // Densities of grain of each layer [Kg/m3]
-    std::vector<double> nu_s; // Poisson's ratios of each layer [-]
+struct hillsAverage_Result {
+    std::vector<double> mus, ks, rhos, nus;
 };
 
 
-/**
- * Computes the effective properties of the solid grains from its constituents for each layer of soil types
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param mu_clay shear modulus of clay [GPa]
- * @param mu_silt shear modulus of silt [GPa]
- * @param mu_sand shear modulus of sand [GPa]
- * @param rho_clay density of clay [Kg/m3]
- * @param rho_silt density of silt [Kg/m3]
- * @param rho_sand density of sand [Kg/m3]
- * @param k_clay bulk modulus of clay [GPa]
- * @param k_silt bulk modulus of silt [GPa]
- * @param k_sand bulk modulus of sand [GPa]
- * @param soil_types soil types of each layer in the profile
- * @return a hillsAverageResult structure containing the effective properties of the solid grains for each layer of soil types
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-// APR2024 - Cunha Teixeira - Adapted for mutli-layers
-hillsAverageResult hillsAverageSrc(const double& mu_clay,
+
+hillsAverage_Result hillsAverage_src(const double& mu_clay,
                                      const double& mu_silt,
                                      const double& mu_sand,
                                      const double& rho_clay,
@@ -57,148 +31,188 @@ hillsAverageResult hillsAverageSrc(const double& mu_clay,
                                      const double& k_clay,
                                      const double& k_silt,
                                      const double& k_sand,
-                                     const std::vector<std::string>& soil_types) {
+                                     const std::vector<std::string>& soiltypes) {
+    // ==========================================
+    // Computes the effective properties of the solid grains from its constituents
+    //
+    // Parameters:
+    // double mu_clay: Shear modulus of clay [GPa]
+    // double mu_silt: Shear modulus of silt [GPa]
+    // double mu_sand: Shear modulus of sand [GPa]
+    // double rho_clay: Density of clay [Kg/m3]
+    // double rho_silt: Density of silt [Kg/m3]
+    // double rho_sand: Density of sand [Kg/m3]
+    // double k_clay: Bulk modulus of clay [GPa]
+    // double k_silt: Bulk modulus of silt [GPa]
+    // double k_sand: Bulk modulus of sand [GPa]
+    // vector[string] soiltypes: soil types of each layer in the profile
+    //
+    // Outputs:
+    // hillsAverage_Result result: structure with the following fields
+    // vector [double] mus: Shear moduli of grain of each layer [Pa]
+    // vector[double] ks: Bulk moduli of grain of each layer [Pa]
+    // vector[double] rhos: Densities of grain of each layer [Kg/m3]
+    // vector[double] nus: Poisson's ratios of each layer [-]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
 
-    std::vector<double> mu_s(soil_types.size()); // Shear moduli of grain of each layer
-    std::vector<double> k_s(soil_types.size()); // Bulk moduli of grain of each layer
-    std::vector<double> rho_s(soil_types.size()); // Densities of grain of each layer
-    std::vector<double> nu_s(soil_types.size()); // Poisson's ratios of each layer
+    std::vector<double> mus(soiltypes.size()); // Shear moduli of grain of each layer
+    std::vector<double> ks(soiltypes.size()); // Bulk moduli of grain of each layer
+    std::vector<double> rhos(soiltypes.size()); // Densities of grain of each layer
+    std::vector<double> nus(soiltypes.size()); // Poisson's ratios of each layer
 
-    for (size_t j = 0; j < soil_types.size(); ++j) {
-        std::string_view soil_type = soil_types[j]; // Soil type for current layer
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
 
-        soilType soil = selectSoilTypeSrc(soil_type); // Soil properties for current layer
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
 
         // Shear moduli of grain [Pa]
-        mu_s[j] = 0.5 * (1 / (soil.wclay / mu_clay + soil.wsilt / mu_silt + soil.wsand / mu_sand) + (soil.wclay * mu_clay + soil.wsilt * mu_silt + soil.wsand * mu_sand)) * 1e9;
+        mus[j] = 0.5 * (1 / (soil.wclay / mu_clay + soil.wsilt / mu_silt + soil.wsand / mu_sand) + (soil.wclay * mu_clay + soil.wsilt * mu_silt + soil.wsand * mu_sand)) * 1e9;
         
         // Bulk moduli of grain [Pa]
-        k_s[j] = 0.5 * (1 / (soil.wclay / k_clay + soil.wsilt / k_silt + soil.wsand / k_sand) + (soil.wclay * k_clay + soil.wsilt * k_silt + soil.wsand * k_sand)) * 1e9;
+        ks[j] = 0.5 * (1 / (soil.wclay / k_clay + soil.wsilt / k_silt + soil.wsand / k_sand) + (soil.wclay * k_clay + soil.wsilt * k_silt + soil.wsand * k_sand)) * 1e9;
         
         // Densities of grain [Kg/m3]
-        rho_s[j] = soil.wclay * rho_clay + soil.wsilt * rho_silt + soil.wsand * rho_sand;
+        rhos[j] = soil.wclay * rho_clay + soil.wsilt * rho_silt + soil.wsand * rho_sand;
         
         // Poisson's ratios
-        nu_s[j] = (3 * k_s[j] - 2 * mu_s[j]) / (2 * (3 * k_s[j] + mu_s[j]));
+        nus[j] = (3 * ks[j] - 2 * mus[j]) / (2 * (3 * ks[j] + mus[j]));
     }
 
-    hillsAverageResult result; // Structure to store the results
-    result.mu_s = mu_s;
-    result.k_s = k_s;
-    result.rho_s = rho_s;
-    result.nu_s = nu_s;
+    hillsAverage_Result result; // Structure to store the results
+    result.mus = mus;
+    result.ks = ks;
+    result.rhos = rhos;
+    result.nus = nus;
 
     return result;
 }
 
 
-/**
- * Computes effective fluid properties and bulk density for each layer of soil type
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param s_ws total saturation over depth [-]
- * @param kw water bulk modulus [Pa]
- * @param ka air bulk modulus [Pa]
- * @param rho_w water density [Kg/m3]
- * @param rho_a air density [Kg/m3]
- * @param rho_s Densities of grain of each layer [Kg/m3]
- * @param soil_types Soil types of each layer in the profile
- * @param thiknesses thickness of each layer [m]
- * @param dz depth discretization [m]
- * @return a effFluidResult structure containing the effective properties and bulk density for each layer of soil type
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-// APR2024 - Cunha Teixeira - Adapted for mutli-layers
-effFluidResult effFluidSrc(const std::vector<double>& s_ws,
+
+effFluid_Result effFluid_src(const std::vector<double>& Sws,
                              const double& kw,
                              const double& ka,
-                             const double& rho_w,
-                             const double& rho_a,
-                             const std::vector<double>& rho_s,
-                             const std::vector<std::string>& soil_types,
+                             const double& rhow,
+                             const double& rhoa,
+                             const std::vector<double>& rhos,
+                             const std::vector<std::string>& soiltypes,
                              const std::vector<double>& thicknesses,
                              const double& dz) {
+    // ==========================================
+    // Computes effective fluid properties and bulk density
+    //
+    // Parameters:
+    // vector[double] Sws: total saturation over depth [-]
+    // double kw: water bulk modulus [Pa]
+    // double ka: air bulk modulus [Pa]
+    // double rhow: water density [Kg/m3]
+    // double rhoa: air density [Kg/m3]
+    // vector[double] rhos: Densities of grain of each layer [Kg/m3]
+    // vector[string] soiltypes: soil types of each layer in the profile
+    // vector[double] thicknesses: thickness of each layer [m]
+    // double dz: depth discretization [m]
+    //
+    // Outputs:
+    // effFluid_Result result: structure with the following fields
+    // vector [double] kf: effective compressibility over depth [Pa-1]
+    // vector[double] rhof: effective fluid density over depth [Kg/m3]
+    // vector[double] rhob: bulk density over depth [Kg/m3]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
 
-    size_t num_points = s_ws.size(); // Number of cells in the profile
+    size_t num_points = Sws.size(); // Number of cells in the profile
 
-    std::vector<double> k_f(num_points); // Effective compressibility over depth
-    std::vector<double> rho_f(num_points); // Effective fluid density over depth
-    std::vector<double> rho_b(num_points); // Bulk density over depth
+    std::vector<double> kf(num_points); // Effective compressibility over depth
+    std::vector<double> rhof(num_points); // Effective fluid density over depth
+    std::vector<double> rhob(num_points); // Bulk density over depth
 
     int start = 0; // Depth start index for fisrt layer
 
-    for (size_t j = 0; j < soil_types.size(); ++j) {
-        std::string_view soil_type = soil_types[j]; // Soil type for current layer
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
-        soilType soil = selectSoilTypeSrc(soil_type); // Soil properties for current layer
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
 
         int end = round(thickness / dz) + start; // Depth end index for current layer
 
         for (int i = start; i < end; ++i) {
-            k_f[i] = 1.0 / (s_ws[i] / kw + (1.0 - s_ws[i]) / ka); // Effective compressibility (Woods formula)
-            rho_f[i] = s_ws[i] * rho_w + (1.0 - s_ws[i]) * rho_a; // Effective fluid density
-            rho_b[i] = (1.0 - soil.phi) * rho_s[j] + soil.phi * rho_f[i]; // Bulk density
+            kf[i] = 1.0 / (Sws[i] / kw + (1.0 - Sws[i]) / ka); // Effective compressibility (Woods formula)
+            rhof[i] = Sws[i] * rhow + (1.0 - Sws[i]) * rhoa; // Effective fluid density
+            rhob[i] = (1.0 - soil.phi) * rhos[j] + soil.phi * rhof[i]; // Bulk density
         }
         start = end; // Update start index for next layer
     }
 
-    effFluidResult result; // Structure to store the results
-    result.k_f = k_f;
-    result.rho_f = rho_f;
-    result.rho_b = rho_b;
+    effFluid_Result result; // Structure to store the results
+    result.kf = kf;
+    result.rhof = rhof;
+    result.rhob = rhob;
 
     return result;
 }
 
 
-/**
- * Computes the effective properties for each layer of soil type using the Hertz Mindlin model
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param s_we effective wetting phase saturation over depth [-]
- * @param z depths of the profile [m]
- * @param h pressure head over depth [m]
- * @param rho_b bulk density over depth [Kg/m3]
- * @param g gravity [m/s2]
- * @param rho_a air density [Kg/m3]
- * @param rho_w water density [Kg/m3]
- * @param n_s coordination number of each layer [-]
- * @param mu_s shear moduli of grain of each layer [GPa]
- * @param nu_s Poisson's ratios of each layer [-]
- * @param fracs fraction of non-slipping grains of each layer [-]
- * @param kk type of effective stress
- * @param soil_types soil types of each layer in the profile
- * @param thicknesses thickness of each layer [m]
- * @return a hertzMindlinResult structure containing the effective properties of each layer of soil type
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-// APR2024 - Cunha Teixeira - Adapted for mutli-layers
-hertzMindlinResult hertzMindlinSrc(const std::vector<double>& s_we,
+
+hertzMindlin_Result hertzMindlin_src(const std::vector<double>& Swe,
                                      const std::vector<double>& z,
                                      const std::vector<double>& h,
-                                     const std::vector<double>& rho_b,
+                                     const std::vector<double>& rhob,
                                      const double& g,
-                                     const double& rho_a,
-                                     const double& rho_w,
-                                     const std::vector<double>& n_s,
-                                     const std::vector<double>& mu_s,
-                                     const std::vector<double>& nu_s,
+                                     const double& rhoa,
+                                     const double& rhow,
+                                     const std::vector<double>& Ns,
+                                     const std::vector<double>& mus,
+                                     const std::vector<double>& nus,
                                      const std::vector<double>& fracs,
                                      const int& kk,
-                                     const std::vector<std::string>& soil_types,
+                                     const std::vector<std::string>& soiltypes,
                                      const std::vector<double>& thicknesses) {
+    // ==========================================
+    // Hertz-Mindlin model
+    //
+    // Parameters:
+    // vector[double] Swe: effective wetting phase saturation over depth [-]
+    // vector[double] z: depths of the profile [m]
+    // vector[double] h: pressure head over depth [m]
+    // vector[double] rhob: bulk density over depth [Kg/m3]
+    // double g: gravity [m/s2]
+    // double rhoa: air density [Kg/m3]
+    // double rhow: water density [Kg/m3]
+    // vector[double] Ns: coordination number of each layer [-]
+    // vector[double] mus: Shear moduli of grain of each layer [GPa]
+    // vector[double] nus: Poisson's ratios of each layer [-]
+    // vector[double] fracs: fraction of non-slipping grains of each layer [-]
+    // int kk: type of effective stress
+    // vector[string] soiltypes: soil types of each layer in the profile
+    // vector[double] thicknesses: thickness of each layer [m]
+    //
+    // Outputs:
+    // hertzMindlin_Result result: structure with the following fields
+    // vector [double] KHM: effective bulk modulus over depth [Pa]
+    // vector[double] muHM: effective shear modulus over depth [Pa]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
 
-    size_t num_points = s_we.size(); // Number of cells in the profile
+    size_t num_points = Swe.size(); // Number of cells in the profile
 
-    std::vector<double> k_m(num_points); // Effective bulk modulus over depth
-    std::vector<double> mu_m(num_points); // Effective shear modulus over depth
+    std::vector<double> KHM(num_points); // Effective bulk modulus over depth
+    std::vector<double> muHM(num_points); // Effective shear modulus over depth
     
-    std::vector<double> pe(num_points); // Overburden stress over depth
+    std::vector<double> Pe(num_points); // Overburden stress over depth
 
     double dz = fabs(z[1] - z[0]); // Depth discretization
 
@@ -206,123 +220,134 @@ hertzMindlinResult hertzMindlinSrc(const std::vector<double>& s_we,
 
     double sigma_prev = 0; // Previous overburden stress
 
-    for (size_t j = 0; j < soil_types.size(); ++j) {
-        std::string_view soil_type = soil_types[j]; // Soil type for current layer
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
-        soilType soil = selectSoilTypeSrc(soil_type); // Soil properties for current layer
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
 
         int end = round(thickness / dz) + start; // Depth end index for current layer
 
         for (int i = start; i < end; ++i) {
 
-            double sigma = rho_b[i] * g * dz + sigma_prev; // Overburden stress
+            double sigma = rhob[i] * g * dz + sigma_prev; // Overburden stress
             sigma_prev = sigma;
 
             double dep = fabs(z[i]); // Depth (positive value)
-            double st = (h[i] <= 0) ? 0 : s_we[i] * rho_w * g * h[i]; // Suction term | Null when fully saturated
-            double pa = rho_a * g * dep; // Air pressure
-            double pe; // Effective stress
-
+            double St = (h[i] <= 0) ? 0 : Swe[i] * rhow * g * h[i]; // Suction term | Null when fully saturated
+            double Pa = rhoa * g * dep; // Air pressure
+            double Pe; // Effective stress
+            
             if (kk == 1) {
-                pe = 101325;
+                Pe = 101325;
             } else if (kk == 2) {
-                pe = sigma - pa;
+                Pe = sigma - Pa;
             } else if (kk == 3) {
-                pe = sigma - pa + st;
+                Pe = sigma - Pa + St;
             } else {
                 throw std::invalid_argument("Invalid value for kk");
             }
 
-            k_m[i] = std::pow((n_s[j]*n_s[j] * std::pow((1 - soil.phi), 2) * mu_s[j]*mu_s[j] * pe) / (18 * M_PI*M_PI * std::pow((1 - nu_s[j]), 2)), 1.0 / 3.0); // Effective bulk modulus
-            mu_m[i] = ((2 + 3 * fracs[j] - (1 + 3 * fracs[j]) * nu_s[j]) / (5 * (2 - nu_s[j]))) * std::pow((3 * n_s[j]*n_s[j] * std::pow((1 - soil.phi), 2) * mu_s[j]*mu_s[j] * pe) / (2 * M_PI*M_PI * std::pow((1 - nu_s[j]), 2)), 1.0 / 3.0); // Effective shear modulus
+            KHM[i] = std::pow((Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (18 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective bulk modulus
+            muHM[i] = ((2 + 3 * fracs[j] - (1 + 3 * fracs[j]) * nus[j]) / (5 * (2 - nus[j]))) * std::pow((3 * Ns[j]*Ns[j] * std::pow((1 - soil.phi), 2) * mus[j]*mus[j] * Pe) / (2 * M_PI*M_PI * std::pow((1 - nus[j]), 2)), 1.0 / 3.0); // Effective shear modulus
         }
         start = end; // Update start index for next layer
     }
 
-    hertzMindlinResult result; // Structure to store the results
-    result.k_m = k_m;
-    result.mu_m = mu_m;
+    hertzMindlin_Result result; // Structure to store the results
+    result.KHM = KHM;
+    result.muHM = muHM;
     
     return result;
 }
 
 
-/**
- * Computes the P- and S-wave velocity for each layer of soil type using the Biot Gassmann model
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param k_m effective bulk modulus over depth [Pa]
- * @param mu_m effective shear modulus over depth [Pa]
- * @param k_s bulk moduli of grain of each layer [Pa]
- * @param k_f effective compressibility over depth [Pa^-1]
- * @param rho_b bulk density over depth [Kg/m3]
- * @param soil_types soil types of each layer in the profile
- * @param thicknesses thickness of each layer [m]
- * @param dz depth discretization [m]
- * @return a biotGassmannResult structure containing the effective properties of each layer of soil type
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-// APR2024 - Cunha Teixeira - Adapted for mutli-layers
-biotGassmannResult biotGassmannSrc(const std::vector<double>& k_m,
-                                     const std::vector<double>& mu_m,
-                                     const std::vector<double>& k_s,
-                                     const std::vector<double>& k_f,
-                                     const std::vector<double>& rho_b,
-                                     const std::vector<std::string>& soil_types,
+
+biotGassmann_Result biotGassmann_src(const std::vector<double>& KHM,
+                                     const std::vector<double>& muHM,
+                                     const std::vector<double>& ks,
+                                     const std::vector<double>& kf,
+                                     const std::vector<double>& rhob,
+                                     const std::vector<std::string>& soiltypes,
                                      const std::vector<double>& thicknesses,
                                      const double& dz) {
+    // ==========================================
+    // Biot Gassman equations
+    //
+    // Parameters:
+    // vector[double] KHM: effective bulk modulus over depth [Pa]
+    // vector[double] muHM: effective shear modulus over depth [Pa]
+    // vector[double] ks: Bulk moduli of grain of each layer [Pa]
+    // vector[double] kf: effective compressibility over depth [Pa-1]
+    // vector[double] rhob: bulk density over depth [Kg/m3]
+    // vector[string] soiltypes: soil types of each layer in the profile
+    // vector[double] thicknesses: thickness of each layer [m]
+    // double dz: depth discretization [m]
+    //
+    // Outputs:
+    // biotGassmann_Result result: structure with the following fields
+    // vector [double] Vp: P-wave velocity over depth [m/s]
+    // vector[double] Vs: S-wave velocity over depth [m/s]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
 
-    size_t num_points = k_m.size(); // Number of cells in the profile
+    size_t num_points = KHM.size(); // Number of cells in the profile
 
-    std::vector<double> v_p(num_points); // P-wave velocity over depth
-    std::vector<double> v_s(num_points); // S-wave velocity over depth
+    std::vector<double> Vp(num_points); // P-wave velocity over depth
+    std::vector<double> Vs(num_points); // S-wave velocity over depth
 
     int start = 0; // Depth start index for fisrt layer
 
-    for (size_t j = 0; j < soil_types.size(); ++j) {
-        std::string_view soil_type = soil_types[j]; // Soil type for current layer
+    for (size_t j = 0; j < soiltypes.size(); ++j) {
+        std::string_view soilType = soiltypes[j]; // Soil type for current layer
         double thickness = thicknesses[j]; // Thickness of current layer
 
-        soilType soil = selectSoilTypeSrc(soil_type); // Soil properties for current layer
+        selectSoilType_Result soil = selectSoilType_src(soilType); // Soil properties for current layer
 
         int end = round(thickness / dz) + start; // Depth end index for current layer
 
         for (int i = start; i < end; ++i) {
-            double alpha2, k;
-            alpha2 = 1 - k_m[i] / k_s[j];
-            k = k_m[i] + (alpha2 * alpha2) / (soil.phi / k_f[i] + (1 - soil.phi) / k_s[j] - k_m[i] / (k_s[j] * k_s[j]));
+            double alpha2, K;
+            alpha2 = 1 - KHM[i] / ks[j];
+            K = KHM[i] + (alpha2 * alpha2) / (soil.phi / kf[i] + (1 - soil.phi) / ks[j] - KHM[i] / (ks[j] * ks[j]));
 
-            v_p[i] = sqrt((k + (4.0 / 3.0) * mu_m[i]) / rho_b[i]); // P-wave velocity
-            v_s[i] = sqrt(mu_m[i] / rho_b[i]); // S-wave velocity
+            Vp[i] = sqrt((K + (4.0 / 3.0) * muHM[i]) / rhob[i]); // P-wave velocity
+            Vs[i] = sqrt(muHM[i] / rhob[i]); // S-wave velocity
         }
         start = end; // Update start index for next layer
     }
 
-    biotGassmannResult result; // Structure to store the results
-    result.v_p = v_p;
-    result.v_s = v_s;
+    biotGassmann_Result result; // Structure to store the results
+    result.Vp = Vp;
+    result.Vs = Vs;
 
     return result;
 }
 
 
-/**
- * Computes Poisson's ratio from v_p and v_s
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param v_p P-wave velocity [m/s]
- * @param v_s S-wave velocity [m/s]
- * @return the Poisson's ratio from v_p and v_s
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-// APR2024 - Cunha Teixeira - Adapted for mutli-layers
-double fishSrc(double v_p, double v_s) {
-    double ratio = v_p/v_s;
-    // return (v_p*v_p - 2*v_s*v_s) / (2 * (v_p*v_p - v_s*v_s))
+
+double fish_src(double vp, double vs) {
+    // ==========================================
+    // Poisson's ration from Vp and Vs
+    //
+    // Parameters:
+    // double vp: P-wave velocity [m/s]
+    // double vs: S-wave velocity [m/s]
+    //
+    // Outputs:
+    // double result: Poisson's ratio [-]
+    //
+    // Programmers:
+    // Firstly implemented in Matlab in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // Adaptated for multi-layers by J. Cunha Teixeira in 2024/04
+    // ==========================================
+
+    double ratio = vp/vs;
+    // return (vp*vp - 2*vs*vs) / (2 * (vp*vp - vs*vs))
     return (0.5 * ratio*ratio - 1) / (ratio*ratio - 1);
 }

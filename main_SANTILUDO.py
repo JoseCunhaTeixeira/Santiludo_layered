@@ -1,7 +1,7 @@
 """
 PROGRAM SANTILUDO
 - Programmers: *S.G. Solazzi & L. Bodet* (vanGen.m courtesy of D. Jougnot)
-- First version: *2020/07/14*
+- Frist version: *2020/07/14*
 - Last update (first draft with synthetic computation) on 2022/03
 - Some minor modifs 2024/03
 - Converted to C++, and interfaced with Python, on 2024/03 by J. Cunha Teixeira
@@ -26,7 +26,7 @@ https://doi.org/10.1029/2021JB022074
   Source code is stored in ./src folder.
   Functions are written in C++ file (*.cpp) and wrapped in Cython file (*.pyx) to be compiled
   as a shared library and called in Python.
-  - Source functions in C++ are named as nameFunctionSrc
+  - Source functions in C++ are named as nameFunction_src
   - Wapped functions in Cython to be called in Python are named as nameFunction
   -> If you change the header of a function in the *.cpp, you must change it on the *.pyx file also.
 
@@ -107,20 +107,20 @@ rho_silt = 2600.0
 rho_sand = 2600.0
 
 # Soil layers
-soiltypes = ['silt', 'clay', 'sand'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
-thicknesses = [1, 3, 16] # Layer thicknesses [m]
+soiltypes = ['clay'] # Soil types (see list in selectSoilType.m with associated VG parameters and mixture)
+thicknesses = [5] # Layer thicknesses [m]
 
 # Grains/agregate parameters per layer
-Ns = [2, 1, 2] # Coordination Number (number of contact per grain) | default = 8
-fracs = [0.3, 0.3, 0.3] # Fraction of non-slipping grains (helps making the soil less stiff) | default = 0.3
+Ns = [9] # Coordination Number (number of contact per grain) | default = 8
+fracs = [0.3] # Fraction of non-slipping grains (helps making the soil less stiff) | default = 0.3
 
 # Water table
-WTs = [0.5, 1.0] # Water table depths [m]
+WTs = [2] # Water table depths [m]
 color_map = copper(np.linspace(0, 1, len(WTs))) # Colorscale for plots if several WT tested
 
 # Geometry and discretisation of the medium
 depth = np.sum(thicknesses) # Depth of the soil column [m]
-dz = 0.1 # Depth sample interval [m]
+dz = 0.01 # Depth sample interval [m]
 top_surface_level = dz # Altitude of the soil surface[m]
 zs = -np.arange(top_surface_level, depth + dz, dz) # Depth positions (negative downward) [m]
 NbCells = len(zs) - 1 # Number of exploration points in depth [#]
@@ -135,27 +135,30 @@ kk = 3 # Pe with suction (cf. Solazzi et al. 2021)
 
 ### SEISMIC PARAMETERS ------------------------------------------------------------------------------------------------------------------------------
 # Layers to put under the studied soil column on the velocity model
-# In GPDC format : "thickness Vp Vs rho\n"
-# Each layer is separated by \n | Only spaces between values | Last layer thickness must be 0)
-# under_layers = "" # Empty string if no under layers
-under_layers = "10 1500 750 2000\n0 4000 2000 2500\n" # One sublayer + one substratum layer
-n_under_layers = under_layers.count('\n') # Number of under layers
+# In GPDC format : [thickness Vp Vs rho]
+# under_layers = [] # Empty list if no under layers
+under_layers = [
+                [10, 4000, 2000, 2500],
+                [0, 8000, 4000, 2500],
+                ]
+under_layers = np.array(under_layers)
+n_under_layers = len(under_layers) # Number of under layers
 
 
 thks = np.diff(np.abs(zs)) # thickness vector [m]
 
 
-x0 = 1 # first geophone position [m]
-Nx = 192 # number of geophones [m]
-dx = 1 # geophone interval [m]
+x0 = 0.5 # first geophone position [m]
+Nx = 400 # number of geophones [m]
+dx = 0.5 # geophone interval [m]
 xs = np.arange(x0, Nx * dx + 1, dx)
 trig  = 0 # data pretrig (if needed)
 
 
 # Frequency domain and sampling setup to compute dispersion
-nf = 100 # number of frequency samples [#]
+nf = 36 # number of frequency samples [#]
 df = 1 # frequency sample interval [Hz]
-min_f = 1 # minimum frequency [Hz]
+min_f = 15 # minimum frequency [Hz]
 max_f = min_f + (nf - 1) * df
 
 
@@ -169,70 +172,83 @@ wave = 'R' # Rayleigh (PSV) fundamental mode
 ### CHECK PARAMETERS --------------------------------------------------------------------------------------------------------------------------------
 if len(set(map(len, (soiltypes, thicknesses, Ns, fracs)))) != 1:
     raise ValueError(f"Arrays are not the same size : {soiltypes = }, {thicknesses = }, {Ns = }, {fracs = }")
-
-
-layers = [layer for layer in under_layers.split('\n') if layer.strip()]
-for i, layer in enumerate(layers) :
-    if len(np.fromstring(layer, dtype=float, sep=' ')) != 4 :
+  
+for i, layer in enumerate(under_layers) :
+    if len(layer) != 4 :
         raise ValueError(f"Under layers format is not correct:\nLayer {i+1} is '{layer}'\nCorrect format : 'thickness Vp Vs rho'")
-    if i == len(layers) - 1 and np.fromstring(layer, dtype=float, sep=' ')[0] != 0 :
+    if i == len(under_layers) - 1 and layer[0] != 0 :
         raise ValueError(f"Last layer thickness must be 0\nLayer {i+1} is '{layer}'\nCorrect format : '0 Vp Vs rho'")
-    if i < len(layers) - 1 and np.fromstring(layer, dtype=float, sep=' ')[0] == 0 :
+    if i < len(under_layers) - 1 and layer[0] == 0 :
         raise ValueError(f"Layers thickness must be greater than 0 (except for the last layer)\nLayer {i+1} is '{layer}'\nCorrect format : 'thickness Vp Vs rho'")
 ### -------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
-# Running the program for each water table depth
+# Runnung the program for each water table depth
 for iWT, WT in enumerate(WTs) :
     #### ROCK PHYSICS -------------------------------------------------------------------------------------------------------------------------------
     # Saturation profile with depth
     hs, Sws, Swes = vanGen(zs, WT, soiltypes, thicknesses)
 
-    # fig, axs = plt.subplots(2, 1, dpi=300, gridspec_kw={'hspace':0.5})
-    # fig.suptitle("vanGen")
-    # axs[0].plot(hs, zs)
-    # axs[0].axhline(-WT, color='gray', linestyle='--')
-    # axs[0].set_xlabel('Pressure head h')
-    # axs[0].set_ylabel('Depth z [m]')
-    # axs[1].plot(Sws, zs, Swes, zs)
-    # axs[1].axhline(-WT, color='gray', linestyle='--')
-    # axs[1].set_xlabel('Saturation S')
-    # axs[1].set_ylabel('Depth z [m]')
-    # axs[1].legend(['Total saturation Sw', 'Effective wetting phase saturation Swe'], fontsize=8)
-    # axs[1].set_xlim([0,1.05])
-    # fig.savefig(f'./output/1_vanGen_WT{WT}.png', bbox_inches='tight')
-
+    plt.rcParams.update({'font.size': 10})
+    cm = 1/2.54
+    fig, axs = plt.subplots(1, 2, figsize=(8*cm, 4*cm), dpi=600, gridspec_kw={'hspace':0.5})
+    axs[0].plot(hs, zs)
+    axs[0].axhline(-WT, color='gray', linestyle='--')
+    axs[0].set_xlabel('Pressure head h')
+    axs[0].set_ylabel('Depth [m]')
+    axs[0].set_ylim([zs[-1], 0])
+    axs[0].grid()
+    axs[0].xaxis.set_label_position('top')
+    axs[0].tick_params(which='both', labelbottom=False, labeltop=True, labelleft=True, labelright=False, bottom=True, top=True, left=True, right=True)
+    axs[1].plot(Sws, zs, Swes, zs)
+    axs[1].axhline(-WT, color='gray', linestyle='--')
+    axs[1].set_xlabel('Saturation')
+    axs[1].set_ylabel('')
+    axs[1].set_xlim([-0.05,1.05])
+    axs[1].set_ylim([zs[-1], 0])
+    axs[1].xaxis.set_label_position('top')
+    axs[1].tick_params(which='both', labelbottom=False, labeltop=True, labelleft=False, labelright=False, bottom=True, top=True, left=True, right=True)
+    axs[1].grid()
+    fig.legend(['', 'WT', '${S_w}$', '${S_{we}}$'], loc='lower center')
+    fig.savefig(f'./output/1_vanGen_WT{WT}.svg', bbox_inches='tight')
 
     # Effective Grain Properties (constant with depth)
     mus, ks, rhos, nus = hillsAverage(mu_clay, mu_silt, mu_sand, rho_clay,
                                       rho_silt, rho_sand, k_clay, k_silt,
                                       k_sand, soiltypes)
-    
-    # print('\nhillsAverage')
-    # print(f'Shear moduli of grains: {mus = } [Pa]')
-    # print(f'Bulk moduli of grains: {ks = } [Pa]')
-    # print(f'Density of  grains: {rhos = } [kg/m3]')
-    # print(f"Poisson's ratio: {nus = }")
-    # print('\n')
+        
+    print('\nhillsAverage')
+    print(f'Shear moduli of grains: {mus = } [Pa]')
+    print(f'Bulk moduli of grains: {ks = } [Pa]')
+    print(f'Density of  grains: {rhos = } [kg/m3]')
+    print(f"Poisson's ratio: {nus = }")
+    print('\n')
 
 
     # Effective Fluid Properties
     kfs, rhofs, rhobs = effFluid(Sws, kw, ka, rhow,
                                  rhoa, rhos, soiltypes, thicknesses, dz)
     
-    # fig, axs = plt.subplots(2, 1, dpi=300, gridspec_kw={'hspace':0.5})
-    # fig.suptitle("effFluid")
-    # axs[0].plot(kfs, zs)
-    # axs[0].axhline(-WT, color='gray', linestyle='--')
-    # axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
-    # axs[0].set_ylabel('Depth z [m]')
-    # axs[1].plot(rhofs, zs, rhobs, zs)
-    # axs[1].axhline(-WT, color='gray', linestyle='--')
-    # axs[1].set_xlabel('Density rho [kg/m3]')
-    # axs[1].set_ylabel('Depth z [m]')
-    # axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'], fontsize=8)
-    # fig.savefig(f'./output/3_effFluid_WT{WT}.png', bbox_inches='tight')
+    fig, axs = plt.subplots(1, 2, figsize=(8*cm, 4*cm), dpi=600, gridspec_kw={'hspace':0.5})
+    axs[0].plot(kfs, zs)
+    axs[0].axhline(-WT, color='gray', linestyle='--')
+    axs[0].set_xlabel('Effective compressibility k_f [Pa-1]')
+    axs[0].set_ylabel('Depth [m]')
+    axs[0].set_ylim([zs[-1], 0])
+    axs[0].grid()
+    axs[0].xaxis.set_label_position('top')
+    axs[0].tick_params(which='both', labelbottom=False, labeltop=True, labelleft=True, labelright=False, bottom=True, top=True, left=True, right=True)
+    axs[1].plot(rhofs, zs, rhobs, zs)
+    axs[1].axhline(-WT, color='gray', linestyle='--')
+    axs[1].set_xlabel('Density rho [kg/m3]')
+    axs[1].set_ylabel('')
+    axs[1].set_xlim([0, 2000])
+    axs[1].set_ylim([zs[-1], 0])
+    axs[1].tick_params(which='both', labelbottom=False, labeltop=True, labelleft=False, labelright=False, bottom=True, top=True, left=True, right=True)
+    axs[1].grid()
+    axs[1].legend(['Effective fluid density rhof', 'Bulk density rhob'], fontsize=8)
+    fig.savefig(f'./output/3_effFluid_WT{WT}.svg', bbox_inches='tight')
 
 
     # Hertz Mindlin Frame Properties
@@ -241,45 +257,67 @@ for iWT, WT in enumerate(WTs) :
                                mus, nus, fracs, kk,
                                soiltypes, thicknesses)
     
-    # fig, ax = plt.subplots(dpi=300)
-    # fig.suptitle("hertzMindlin")
-    # ax.plot(KHMs, zs)
-    # ax.plot(muHMs, zs)
-    # ax.axhline(-WT, color='gray', linestyle='--')
-    # ax.set_xlabel('Pressure [Pa]')
-    # ax.set_ylabel('Depth z [m]')
-    # ax.legend(['Effective bulk KHM', 'Shear moduli muHM'], fontsize=8)
-    # ax.set_xlim([1.3e8,2.5e8])
-    # fig.savefig(f'./output/4_hertzMindlin_WT{WT}.png', bbox_inches='tight')
+    fig, axs = plt.subplots(1, 2, figsize=(8*cm, 4*cm), dpi=600, gridspec_kw={'hspace':0.5})
+    ax = axs[0]
+    ax.plot(KHMs, zs)
+    ax.plot(muHMs, zs)
+    ax.axhline(-WT, color='gray', linestyle='--')
+    ax.set_xlabel('Pressure [Pa]')
+    ax.set_ylabel('Depth z [m]')
+    ax.set_ylim([zs[-1], 0])
+    ax.grid()
+    ax.xaxis.set_label_position('top')
+    ax.tick_params(which='both', labelbottom=False, labeltop=True, labelleft=True, labelright=False, bottom=True, top=True, left=True, right=True)
+    ax.legend(['Effective bulk KHM', 'Shear moduli muHM'], fontsize=8)
+    fig.savefig(f'./output/4_hertzMindlin_WT{WT}.svg', bbox_inches='tight')
 
 
     # Saturated Properties
     VPs, VSs = biotGassmann(KHMs, muHMs, ks, kfs,
                             rhobs, soiltypes, thicknesses, dz)
-    
-    # fig, ax = plt.subplots(dpi=300)
-    # fig.suptitle("biotGassmann")
-    # ax.plot(VPs, zs)
-    # ax.plot(VSs, zs)
-    # ax.axhline(-WT, color='gray', linestyle='--')
-    # ax.set_xlabel('Velocity [m/s]')
-    # ax.set_ylabel('Depth z [m]')
-    # ax.legend(['Vp', 'Vs'], fontsize=8)
-    # fig.savefig(f'./output/5_biotGassmann_WT{WT}.png', bbox_inches='tight')
+     
+    fig, axs = plt.subplots(1, 2, figsize=(8*cm, 4*cm), dpi=600, gridspec_kw={'hspace':0.5})
+    ax = axs[0]
+    ax.plot(VPs, zs)
+    ax.plot(VSs, zs)
+    ax.axhline(-WT, color='gray', linestyle='--')
+    ax.set_xlabel('Velocity [m/s]')
+    ax.set_ylabel('Depth z [m]')
+    ax.set_ylim([zs[-1], 0])
+    ax.grid()
+    ax.xaxis.set_label_position('top')
+    ax.tick_params(which='both', labelbottom=False, labeltop=True, labelleft=True, labelright=False, bottom=True, top=True, left=True, right=True)
+    ax.legend(['Vp', 'Vs'], fontsize=8)
+    fig.savefig(f'./output/5_biotGassmann_WT{WT}.svg', bbox_inches='tight')
+    plt.rcParams.update({'font.size': 14})
 
 
-    # plt.close('all')
+    plt.close('all')
     ### ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
     #### SEISMIC FWD MODELING -----------------------------------------------------------------------------------------------------------------------
     # First arrival time computations
-    ThodPs = firstArrival(thks, VPs, xs, trig) # P-wave first arrival times
-    ThodSs = firstArrival(thks, VSs, xs, trig) # S-wave first arrival times
+    thks_tmp = np.copy(thks) # Thicknesses of the layers
+    VPs_tmp = np.copy(VPs) # P-wave velocities of the layers
+    VSs_tmp = np.copy(VSs) # S-wave velocities of the layers
+    for layer in under_layers:
+        thickness = layer[0]
+        if thickness == 0:
+            thickness = 2*dz
+        vp = layer[1]
+        vs = layer[2]
+        thks_tmp = np.concatenate((thks_tmp, [dz]*int(thickness/dz))) # Thicknesses of the layers
+        VPs_tmp = np.concatenate((VPs_tmp, [vp]*int(thickness/dz))) # P-wave velocities of the layers
+        VSs_tmp = np.concatenate((VSs_tmp, [vs]*int(thickness/dz))) # S-wave velocities of the layers            
+    ThodPs = firstArrival(thks_tmp, VPs_tmp, xs, trig) # P-wave first arrival times
+    ThodSs = firstArrival(thks_tmp, VSs_tmp, xs, trig) # S-wave first arrival times
+    
 
     # Velocity model in string format for GPDC
-    velocity_model_string = writeVelocityModel(thks, VPs, VSs, rhobs, under_layers, n_under_layers)
+    under_layers_str = '\n'.join([' '.join(map(str, layer)) for layer in under_layers]) + '\n'
+    velocity_model_string = writeVelocityModel(thks, VPs, VSs, rhobs, under_layers_str, n_under_layers)
 
     # Dispersion curves computing with GPDC
     velocity_model_RAMfile = StringIO(velocity_model_string) # Keep velocity model string in the RAM in a file format alike to trick GPDC which expects a file
@@ -312,8 +350,7 @@ for iWT, WT in enumerate(WTs) :
 
     zs_seismic = np.copy(zs)
     if n_under_layers != 0:
-        for i, layer in enumerate(layers):
-            thickness, Vp, Vs, rho = np.fromstring(layer, dtype=float, sep=' ')
+        for i, (thickness, Vp, Vs, rho) in enumerate(under_layers):
             thickness_number = int(max(dz, thickness) // dz)
             VSs = np.concatenate((VSs, [Vs]*thickness_number))
             VPs = np.concatenate((VPs, [Vp]*thickness_number))

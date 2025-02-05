@@ -5,27 +5,31 @@
 #include <algorithm>
 
 
-/**
- * Returns a string of the velocity model in a format expected by GPDC
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param thk thickness of each layer [m]
- * @param v_p P-wave velocity of each layer [m/s]
- * @param v_s S-wave velocity of each layer [m/s]
- * @param rho density of each layer [kg/m^3]
- * @param under_layers layers to put under the studied soil column on the velocity model in GPDC format
- * @param n_under_layers number of layers in the under_layers
- * @return a string of the velocity model in a format expected by GPDC
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-std::string writeVelocityModelSrc(const std::vector<double>& thk,
-                        const std::vector<double>& v_p,
-                        const std::vector<double>& v_s,
+
+std::string writeVelocityModel_src(const std::vector<double>& thk,
+                        const std::vector<double>& vp,
+                        const std::vector<double>& vs,
                         const std::vector<double>& rho,
                         const std::string_view& under_layers,
                         const int& n_under_layers) {
+    // ==========================================
+    // Returns a string of the velocity model in a format expected by GPDC
+    //
+    // Parameters:
+    // vector<double> thk: thickness of each layer [m]
+    // vector<double> vp: P-wave velocity of each layer [m/s]
+    // vector<double> vs: S-wave velocity of each layer [m/s]
+    // vector<double> rho: density of each layer [kg/m^3]
+    // string under_layers: Layers to put under the studied soil column on the velocity model in GPDC format
+    // int n_under_layers: Number of layers in the under_layers
+    //
+    // Outputs:
+    // string velocity_model: velocity model in GPDC format
+    //
+    // Programmers:
+    // Firstly implemented in Matlab by S. Pasquet in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // ==========================================
 
     int nl = thk.size(); // Number of layers
     std::stringstream velocity_model; // String to store the velocity model
@@ -38,7 +42,7 @@ std::string writeVelocityModelSrc(const std::vector<double>& thk,
         } else {
             velocity_model << thk[i] << ' ';
         }
-        velocity_model << v_p[i] << ' ' << v_s[i] << ' ' << rho[i] << '\n';
+        velocity_model << vp[i] << ' ' << vs[i] << ' ' << rho[i] << '\n';
     }
 
     // Write the under_layers
@@ -50,24 +54,28 @@ std::string writeVelocityModelSrc(const std::vector<double>& thk,
 }
 
 
-/**
- * Computes S- or P-wave first arrival
- * 
- * @author S.G. Solazzi
- * @author J. Cunha Teixeira
- * @param thk thickness of each layer [m]
- * @param vv velocity of each layer [m/s]
- * @param Xdata distance from the source to the receiver [m]
- * @param trig trigger time [s]
- * @return hodochrone table
-*/
-// 2021 - Solazzi - Implemented in Matlab
-// MAR2024 - Cunha Teixeira - Traduced in C++
-std::vector<double> firstArrivalSrc(const std::vector<double>& thk,
+
+std::vector<double> firstArrival_src(const std::vector<double>& thk,
                                      const std::vector<double>& vv,
                                      const std::vector<double>& Xdata,
                                      const double& trig) {
-    
+    // ==========================================
+    // Computes S- or P-wave first arrivals
+    //
+    // Parameters:
+    // vector<double> thk: thickness of each layer [m]
+    // vector<double> vv: velocity of each layer [m/s]
+    // vector<double> Xdata: distance from the source to the receiver [m]
+    // double trig: trigger time [s]
+    //
+    // Outputs:
+    // vector<double> Thod: hodochrone table
+    //
+    // Programmers:
+    // Firstly implemented in Matlab by L. Bodet in Solazzi et al. (2021)
+    // Traduced in C++ by J. Cunha Teixeira in 2024/03
+    // ==========================================
+
     size_t rows = thk.size();
     size_t cols = Xdata.size();
     std::vector<double> Tr(rows*cols, 0.0); // arrival time table as a flatten array
@@ -78,7 +86,7 @@ std::vector<double> firstArrivalSrc(const std::vector<double>& thk,
     // Calculating intercepts
     for (size_t inl = 0; inl < rows; ++inl) {
         double Tzc = 0.0;
-        for (size_t inltz = 0; inltz <= inl; ++inltz) {
+        for (size_t inltz = 0; inltz < inl; ++inltz) {
             Tzc += 2 * thk[inltz] / vv[inltz] * sqrt(1 - vv[inltz] * vv[inltz] / (vv[inl] * vv[inl]));
         }
         Tz[inl] = Tzc;
