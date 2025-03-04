@@ -1,6 +1,6 @@
 # PROGRAM SANTILUDO*
 - Programmers: *S.G. Solazzi & L. Bodet* (function *Prof_VanGenLB.m* courtesy of D. Jougnot)
-- Frist version: *2020/07/14*
+- First version: *2020/07/14*
 - Last update (first draft with synthetic computation): *2022/03*
 - some minor modifs 2024/03
 - Converted to C++, and interfaced with Python, on 2024/04 by J. Cunha Teixeira
